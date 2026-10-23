@@ -1631,7 +1631,9 @@ function stepMe(dt){
   let moved = false;
   if (vx || vy) {
     const n = Math.hypot(vx, vy); vx /= n; vy /= n;
-    const sp = 80 * dt, nx = me.x + vx * sp, ny = me.y + vy * sp;
+    const mul = S.speedMul || 1, sub = Math.ceil(mul / 1.5); let sp = 80 * dt * mul / sub, nx, ny;
+    for (let i = 1; i < sub; i++) { if (!blocked(me.x + vx * sp, me.y)) me.x += vx * sp; if (!blocked(me.x, me.y + vy * sp)) me.y += vy * sp; }
+    nx = me.x + vx * sp; ny = me.y + vy * sp;
     if (!blocked(nx, me.y)) { me.x = nx; moved = true; }
     if (!blocked(me.x, ny)) { me.y = ny; moved = true; }
     if (!moved && MAP.target) { // slide around obstacles
@@ -1744,6 +1746,7 @@ function mDev(b){
       <button class="btn" data-dev="focus" ${S.focus ? "" : "disabled"}>จบโฟกัสทันที</button>
       <button class="btn" data-dev="cats">เรียกแมวตัวที่ว่าง</button>
     </div></div>
+    <div class="field"><span class="lab">ความเร็วเดิน (ตอนนี้ ${S.speedMul || 1}x)</span><div class="btnrow">${[1,2,3,5,8].map(n => `<button class="btn ${(S.speedMul || 1) === n ? "primary" : ""}" data-devspeed="${n}">${n}x</button>`).join("")}</div></div>
     <p class="note">คีย์ลัด: Alt+Shift+L = Lv200 · Alt+Shift+K = ล้างโบนัส</p></div>`;
 }
 function mVoice(b){
@@ -2216,6 +2219,7 @@ document.addEventListener("click", e => {
   if (t.id === "btnRadio") return openModal({kind:"radio"});
   if (t.id === "btnVoice") return openModal({kind:"voice"});
   if (t.id === "btnDev") return openModal({kind:"dev"});
+  if (t.dataset.devspeed) { S.speedMul = +t.dataset.devspeed; toast(`dev: เดินเร็ว ${S.speedMul}x`); return render(); }
   if (t.dataset.devlv) { setLevel(+t.dataset.devlv); return render(); }
   if (t.dataset.dev === "clear") { saveMine(r => { delete r.xpBonus; }); toast("dev: ล้างโบนัสแล้ว"); return render(); }
   if (t.dataset.dev === "focus") { if (S.focus) S.focus.until = Date.now(); closeModal(); return; }
