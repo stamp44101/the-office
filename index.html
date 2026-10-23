@@ -557,6 +557,8 @@ function computeProgress(){
     p.xp += XP_BASE + (t.due && ymd(new Date(t.doneAt)) <= t.due ? XP_ONTIME : 0);
     p.done++; p.days.add(ymd(new Date(t.doneAt)));
   }));
+  // dev cheat: flat XP bonus stored on rooms/<id>.xpBonus (see Alt+Shift+L / Alt+Shift+K)
+  (S.rawRooms || []).forEach(r => { const b = Number(r.xpBonus) || 0; if (b > 0) { const p = by[r.id] = by[r.id] || {xp:0, days:new Set(), done:0}; p.xp += b; } });
   const out = {};
   Object.entries(by).forEach(([id, p]) => {
     let streak = 0; const d = new Date();
@@ -832,6 +834,12 @@ addEventListener("resize", () => { clearTimeout(MAP.rt); MAP.rt = setTimeout(siz
 /* keyboard */
 const KEYMAP = {ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down", ArrowLeft:"left", KeyA:"left", ArrowRight:"right", KeyD:"right"};
 const typing = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable); };
+// dev cheat (staging): Alt+Shift+L → your XP jumps to Lv200, Alt+Shift+K → remove the bonus
+addEventListener("keydown", e => {
+  if (!e.altKey || !e.shiftKey || typing() || !S.myId || !S.db || !S.rawRooms.some(r => r.id === S.myId)) return;
+  if (e.code === "KeyL") { e.preventDefault(); saveMine(r => { r.xpBonus = xpForLevel(200); }); toast("dev: Lv200"); }
+  else if (e.code === "KeyK") { e.preventDefault(); saveMine(r => { delete r.xpBonus; }); toast("dev: ล้าง XP โบนัสแล้ว"); }
+});
 addEventListener("keydown", e => {
   if (!MAP.canvas || S.view !== "office") return;
   if (e.key === "Enter" && !typing()) { const s = $("#say"); if (s) { s.focus(); e.preventDefault(); } return; }
