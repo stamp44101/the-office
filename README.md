@@ -22,3 +22,6 @@ Map, lounge, coffee machine, snack corner, meeting/sofa seats, office cats, fest
 NPCs: Tel'Annas, Mortos, Liliana wander the floor on a shared clock (everyone sees the same path), never sit at desks; tap one (or press E nearby) to open a chat with their full portrait — replies come from the `sample` capability in character.
 
 Dev cheats (staging): toolbar "🛠 โกง" menu — set level (presets or 1–999), clear bonus, finish focus now, call a free cat. Shortcuts `Alt+Shift+L` (Lv200) / `Alt+Shift+K` (clear). Level is a flat `rooms/<me>.xpBonus` on top of task XP.
+
+## Walkie-talkie (วิทยุสื่อสาร)
+Hold the 📻 ว. toolbar button to record (max 6s), release to send. Clip is uploaded via the `assets` capability, the URL + sender position is broadcast on the `room` "radio" topic, and only peers within ~180px on the map hear it, volume scaled by distance. Needs capabilities `assets:{upload:"interact"}` and `room:{topics:{radio:"interact"}}`. Requires the viewer to allow the microphone in the artifact frame; signed-out / public-link viewers can listen but cannot transmit.

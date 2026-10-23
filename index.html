@@ -1698,6 +1698,7 @@ function renderToolbar(){
       <button class="pbtn ${f ? "focus-on" : ""}" id="btnFocus">${f ? `⏱ ${mmss(f.until - Date.now())} หยุด` : "⏱ โฟกัส"}</button>
       <button class="pbtn" id="btnCats">🐈 แมว${S.myCat ? `: ${esc(catById(S.myCat).name)}` : ""}</button>
       <button class="pbtn ${S.tts ? "focus-on" : ""}" id="btnVoice">🎙 คุยเสียง</button>
+      <button class="pbtn ${RADIO.busy ? "focus-on" : ""}" id="btnRadio" title="กดค้างเพื่อพูด ปล่อยเพื่อส่ง">📻 ${RADIO.busy ? "กำลังอัด…" : "ว."}</button>
       ${myRoom() && !S.readOnly ? `<button class="pbtn" id="btnDev">🛠 โกง</button>` : ""}
       <button class="pbtn" id="btnRadio" aria-pressed="${MUSIC.on}">♪ ${MUSIC.on ? esc(TRACKS[S.track].name) : "วิทยุ"}</button>
       <button class="pbtn" id="bell" aria-label="การแจ้งเตือน">🔔<span id="bellN">${n ? Math.min(n, 99) : ""}</span></button>
@@ -1884,7 +1885,49 @@ function connectRoom(room){
     renderSide();
   }, () => { renderSide(); });
   room.onConnection(() => renderSide(), () => {});
+  try { if (room.on) room.on("radio", onRadio, () => {}); } catch {}
   sendPresence(true);
+}
+/* ---------- walkie-talkie: hold to record, upload clip, play for peers in range ---------- */
+const RADIO = {rec:null, chunks:[], stream:null, busy:false, maxMs:6000};
+const RADIO_RANGE = 180;
+async function radioStart(){
+  if (RADIO.busy || !S.room) return;
+  if (!S.assets) { toast("ส่งเสียงไม่ได้: ต้องเป็นสมาชิกองค์กรและล็อกอิน claude.ai"); return; }
+  try { if (!RADIO.stream || !RADIO.stream.active) RADIO.stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch (e) { toast("เปิดไมโครโฟนไม่ได้ (เบราว์เซอร์หรือ claude.ai ไม่อนุญาต)"); return; }
+  const mt = ["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t => MediaRecorder.isTypeSupported(t)) || "";
+  RADIO.chunks = []; const mr = RADIO.rec = new MediaRecorder(RADIO.stream, mt ? {mimeType:mt, audioBitsPerSecond:24000} : {});
+  mr.ondataavailable = e => { if (e.data && e.data.size) RADIO.chunks.push(e.data); };
+  mr.onstop = radioSend; mr.start();
+  RADIO.busy = true; RADIO.startedAt = Date.now(); MAP.me.radio = Date.now();
+  clearTimeout(RADIO.tm); RADIO.tm = setTimeout(radioStop, RADIO.maxMs);
+  sendPresence(true); renderToolbar();
+}
+function radioStop(){
+  if (!RADIO.busy) return; clearTimeout(RADIO.tm);
+  try { RADIO.rec.stop(); } catch {}
+  RADIO.busy = false; MAP.me.radio = 0; renderToolbar();
+}
+async function radioSend(){
+  if (Date.now() - RADIO.startedAt < 350) { toast("กดค้างไว้หน่อยแล้วค่อยพูด"); return; }
+  const blob = new Blob(RADIO.chunks, {type:(RADIO.chunks[0] && RADIO.chunks[0].type) || "audio/webm"});
+  if (!blob.size) return;
+  if (blob.size > 1.2e6) { toast("เสียงยาวไป ลองสั้นกว่านี้"); return; }
+  let up; try { up = await S.assets.upload(blob); } catch (e) { toast("อัปโหลดเสียงไม่สำเร็จ"); return; }
+  const me = MAP.me;
+  try { await S.room.emit("radio", {url:up.url, x:Math.round(me.x), y:Math.round(me.y), at:Date.now()}); toast("📻 ส่งเสียงแล้ว คนใกล้ๆ จะได้ยิน"); }
+  catch (e) { toast("ส่งวิทยุไม่สำเร็จ (อาจไม่มีสิทธิ์ส่งในห้องนี้)"); }
+}
+function onRadio(msg){
+  if (!msg || msg.sameTab || !msg.data || typeof msg.data.url !== "string" || !/^https?:\/\//.test(msg.data.url)) return;
+  const d = msg.data, me = MAP.me; if (!me) return;
+  const sx = typeof d.x === "number" ? d.x : me.x, sy = typeof d.y === "number" ? d.y : me.y;
+  const dist = Math.hypot(sx - me.x, sy - me.y);
+  if (dist > RADIO_RANGE) return; // out of range: ไม่ได้ยิน
+  const peer = Object.values(MAP.remote).find(r => r.by && r.by === msg.by);
+  if (peer) peer.emote = {e:"📻", at:Date.now()}; else { MAP.banner; }
+  try { const a = new Audio(d.url); a.volume = Math.max(.12, 1 - dist / RADIO_RANGE); a.play().catch(() => {}); } catch {}
 }
 function emote(i){
   const e = typeof i === "string" ? i : EMOTES[i]; if (!e || !MAP.me) return;
@@ -2381,7 +2424,8 @@ function fallbackCopy(txt){
 }
 document.addEventListener("input", e => { if (e.target.id === "vol") setVol(+e.target.value); });
 document.addEventListener("pointerdown", e => { const b = e.target.closest(".dpad button"); if (b) { MAP.dpad = b.dataset.dir; MAP.target = null; MAP.path = null; MAP.onArrive = null; b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); } });
-["pointerup","pointercancel"].forEach(ev => document.addEventListener(ev, () => { MAP.dpad = null; }));
+document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest("#btnRadio")) { e.preventDefault(); radioStart(); } });
+["pointerup","pointercancel"].forEach(ev => document.addEventListener(ev, () => { MAP.dpad = null; if (RADIO.busy) radioStop(); }));
 document.addEventListener("submit", e => {
   e.preventDefault();
   const f = e.target;
@@ -2448,7 +2492,8 @@ document.addEventListener("submit", e => {
 render();
 (async () => {
   const use = n => (window.claude && window.claude.use) ? window.claude.use(n) : Promise.resolve(null);
-  const [db, user, room] = await Promise.all([use("db"), use("user"), use("room")]);
+  const [db, user, room, assets] = await Promise.all([use("db"), use("user"), use("room"), use("assets")]);
+  S.assets = assets;
   if (room) { try { connectRoom(room); } catch (e) { S.room = null; } }
   if (!db) { S.noDb = true; return render(); }
   S.db = db; S.user = user;
