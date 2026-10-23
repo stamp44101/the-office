@@ -50,11 +50,46 @@
 .hud button[aria-pressed="true"]{background:var(--accent);color:#fff}
 .hud input[type=range]{width:70px;accent-color:var(--accent)}
 .hud svg{width:14px;height:14px}
-.prompt{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);border:2px solid var(--wall);background:var(--amber);color:var(--ink);font-weight:700;font-size:13px;padding:5px 14px;border-radius:999px;box-shadow:0 3px 0 var(--wall);white-space:nowrap;max-width:calc(100% - 140px);overflow:hidden;text-overflow:ellipsis}
-.dpad{position:absolute;left:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:3px;opacity:.88}
+.ctrlrow{display:flex;align-items:center;gap:12px;min-height:34px}
+.ctrlmid{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.prompt{border:2px solid var(--wall);background:var(--amber);color:var(--ink);font-weight:700;font-size:13px;padding:5px 14px;border-radius:999px;box-shadow:0 3px 0 var(--wall);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.emotes{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.emotes button{width:36px;height:34px;border:2px solid var(--wall);background:var(--panel);border-radius:10px;font-size:17px;line-height:1;padding:0;box-shadow:0 2px 0 var(--wall)}
+.emotes button:active{transform:translateY(2px);box-shadow:none}
+.dpad{flex:none;display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:3px}
 .dpad button{border:2px solid var(--wall);background:var(--panel);border-radius:9px;font-size:16px;font-weight:700;color:var(--wall);touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 2px 0 var(--wall);padding:0}
 .dpad button:active{background:var(--accent2);color:#fff}
 @media (hover:hover) and (pointer:fine){.dpad{display:none}}
+#bell{position:relative} #bellN:not(:empty){position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:17px;padding:0 4px}
+.btn.mini{padding:1px 9px;font-size:12px}
+.board-snip{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:96px;overflow:hidden;color:var(--ink)}
+.board-snip.empty-b{color:var(--muted)}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;font-size:13px}
+.feed li{display:flex;gap:6px;align-items:baseline;min-width:0}
+.feed li span{min-width:0;overflow-wrap:anywhere}
+.feed li time{margin-left:auto;flex:none;font-size:11px;color:var(--muted)}
+.feed li.tome{background:color-mix(in srgb,var(--amber) 14%,transparent);border-radius:6px;padding:2px 4px}
+.me-card .lvl{display:flex;align-items:center;gap:10px}
+.lvbadge{font-family:var(--f-pixel);background:var(--wall);color:#fff;border-radius:6px;padding:1px 8px;font-size:14px;flex:none}
+.xpbar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:1}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.me-card small{color:var(--muted);font-size:12px}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap}
+.task .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+.mini-chip{font-size:11px;font-weight:600;padding:0 7px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.mini-chip.asg{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+button.mini-chip{cursor:pointer}
+.thread{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:8px;background:var(--bg);border-radius:8px}
+.thread .c{font-size:13px;overflow-wrap:anywhere} .thread .c b{color:var(--blue);font-size:12px;margin-right:4px} .thread .c time{font-size:11px;color:var(--muted);margin-left:4px}
+.thread form{display:flex;gap:6px} .thread input{flex:1;min-width:0}
+.task .ai{border:0;background:transparent;font-size:13px;padding:0 2px;line-height:1.5}
+.editform select{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 9px;font-size:14px;min-width:0;flex:1 1 140px}
+.dchip:disabled,.swatch:disabled{opacity:.45;cursor:not-allowed}
+.dchip .lk{font-size:11px;margin-left:3px}
+.ai-box{display:flex;flex-direction:column;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.ai-out{white-space:pre-wrap;font-size:14px;overflow-wrap:anywhere;min-height:24px}
+.ai-out:empty::before{content:"กดปุ่มด้านบน ให้ AI ช่วยสรุปจากงานจริงในออฟฟิศ";color:var(--muted)}
+.room-lv{display:inline-flex;gap:6px;align-items:center;margin-left:6px}
 .chatbar{display:flex;gap:8px}
 .chatbar input{flex:1;min-width:0;border:2px solid var(--wall);border-radius:12px;padding:9px 14px;font-size:15px;background:var(--panel)}
 .chatbar button{border:2px solid var(--wall);background:var(--accent);color:#fff;border-radius:12px;font-weight:700;padding:0 18px;box-shadow:0 3px 0 var(--wall)}
@@ -415,6 +450,7 @@ function mergeTasks(){
     const legacy = (r.legacyTasks || []).filter(t => t && t.id && !ids.has(t.id)).map(t => Object.assign({owner:r.id}, t));
     return Object.assign({}, r, {tasks:[...own, ...legacy]});
   });
+  computeProgress();
 }
 function writeErr(e){
   if (e && e.code === "invalid_argument") { S.readOnly = true; toast("ยังไม่มีสิทธิ์แก้ไข ขอให้เจ้าของออฟฟิศแชร์ให้แบบ Contributor ขึ้นไป"); }
@@ -444,7 +480,7 @@ function saveTask(id, patch){
   const i = S.taskDocs.findIndex(t => t.id === id);
   let body;
   if (i >= 0) { body = Object.assign({}, S.taskDocs[i], patch); S.taskDocs[i] = body; }
-  else { const leg = (myRoom() && myRoom().tasks || []).find(t => t.id === id); body = Object.assign({owner:S.myId}, leg || {}, patch, {id}); S.taskDocs.push(body); }
+  else { const leg = allTasks().find(t => t.id === id); body = Object.assign({owner:S.myId}, leg || {}, patch, {id}); S.taskDocs.push(body); }
   body.updatedAt = new Date().toISOString();
   mergeTasks(); render();
   const data = Object.assign({}, body); delete data.id;
@@ -476,6 +512,111 @@ async function migrateMine(){
     saveMine(() => {}); // rewrites the room doc without the old array
   } catch (e) { S.migrated = false; }
 }
+
+const allTasks = () => S.rooms.flatMap(r => r.tasks || []);
+/* ---------- collaboration: who may touch a task, activity feed, board ---------- */
+S.acts = []; S.board = null; S.openThread = null; S.lastSeen = 0;
+try { S.lastSeen = Number(localStorage.getItem("po_seen")) || 0; } catch {}
+const canWrite = () => !!(S.db && S.myId && !S.readOnly);
+const isOwnerOf = t => canWrite() && t.owner === S.myId;
+const canTouch = t => canWrite() && (t.owner === S.myId || t.assignee === S.myId);
+const members = () => sortedRooms().map(r => r.id);
+function clientName(t){ const r = S.rawRooms.find(x => x.id === t.owner); const c = r && (r.clients || []).find(c => c.id === t.clientId); return c ? c.name : "ไม่ระบุลูกค้า"; }
+function logAct(kind, text, to){
+  if (!canWrite()) return;
+  const a = {by:S.myId, kind, text:String(text).slice(0, 160), to:[...new Set((to || []).filter(x => x && x !== S.myId))], at:Date.now()};
+  S.acts.unshift(a); renderSide();
+  chain = chain.then(() => S.db.collection("activity").add(a)).catch(() => {});
+  pruneChat();
+}
+// @mentions: match "@<display name>" against people in the office
+function mentionsIn(text){
+  const out = [];
+  members().forEach(id => { const n = (S.profiles[id] && S.profiles[id].name) || ""; if (n && text.toLowerCase().includes("@" + n.toLowerCase())) out.push(id); });
+  return out;
+}
+const unread = () => S.acts.filter(a => (a.to || []).includes(S.myId) && a.at > S.lastSeen).length;
+function markSeen(){ S.lastSeen = Date.now(); try { localStorage.setItem("po_seen", String(S.lastSeen)); } catch {} renderSide(); }
+function saveBoard(text){
+  S.board = {text, by:S.myId, at:Date.now()}; render();
+  chain = chain.then(() => S.db.doc("board/main").set(S.board)).catch(writeErr);
+  logAct("board", "อัปเดตกระดานทีม", members());
+}
+
+/* ---------- game layer: XP, level, streak (derived from finished tasks, nothing extra stored) ---------- */
+const XP_BASE = 10, XP_ONTIME = 5;
+const levelFor = xp => 1 + Math.floor(Math.sqrt(xp / 40));
+const xpForLevel = lv => 40 * (lv - 1) * (lv - 1);
+function computeProgress(){
+  const by = {};
+  S.rooms.forEach(r => (r.tasks || []).forEach(t => {
+    if (!t.done || !t.doneAt) return;
+    const who = t.doneBy || t.assignee || t.owner || r.id;
+    const p = by[who] = by[who] || {xp:0, days:new Set(), done:0};
+    p.xp += XP_BASE + (t.due && ymd(new Date(t.doneAt)) <= t.due ? XP_ONTIME : 0);
+    p.done++; p.days.add(ymd(new Date(t.doneAt)));
+  }));
+  const out = {};
+  Object.entries(by).forEach(([id, p]) => {
+    let streak = 0; const d = new Date();
+    if (!p.days.has(ymd(d))) d.setDate(d.getDate() - 1);
+    while (p.days.has(ymd(d))) { streak++; d.setDate(d.getDate() - 1); }
+    const level = levelFor(p.xp);
+    out[id] = {xp:p.xp, level, streak, done:p.done, cur:xpForLevel(level), next:xpForLevel(level + 1)};
+  });
+  S.prog = out;
+}
+const progOf = id => (S.prog && S.prog[id]) || {xp:0, level:1, streak:0, done:0, cur:0, next:xpForLevel(2)};
+// decorations unlock with level: index in each list → level needed
+const UNLOCK = {L:[1,1,1,2,3,4], R:[1,1,1,2,3,4], F:[1,1,2,3,4,5], color:[1,1,1,2,2,3,4], chair:[1,1,2,2,3]};
+const lockLv = (key, idx) => (UNLOCK[key] && UNLOCK[key][idx]) || 1;
+const EMOTES = ["👋","☕","🔥","🎉","😴"];
+
+/* ---------- AI (sample capability) ---------- */
+const AI_ERR = {not_granted:"ยังไม่ได้อนุญาตให้ใช้ AI ในหน้านี้", rate_limited:"ใช้ AI ถี่เกินไป รอสักครู่แล้วลองใหม่", cancelled:"ยกเลิกแล้ว"};
+const aiErr = e => AI_ERR[e && e.code] || "AI ตอบไม่สำเร็จ ลองใหม่อีกครั้ง";
+function officeDigest(days){
+  const since = Date.now() - days * 864e5, lines = [];
+  S.rooms.forEach(r => {
+    const who = nameOf(r.id);
+    const open = (r.tasks || []).filter(t => !t.done), done = (r.tasks || []).filter(t => t.done && t.doneAt && Date.parse(t.doneAt) >= since);
+    lines.push(`## ${who}${r.roomName ? " (" + r.roomName + ")" : ""}`);
+    open.forEach(t => lines.push(`- ค้าง [${clientName(t)}] ${t.title} — ${dueInfo(t).label}${t.assignee && t.assignee !== r.id ? " (มอบให้ " + nameOf(t.assignee) + ")" : ""}`));
+    done.forEach(t => lines.push(`- เสร็จ ${ymd(new Date(t.doneAt))} [${clientName(t)}] ${t.title}${t.doneBy && t.doneBy !== r.id ? " (โดย " + nameOf(t.doneBy) + ")" : ""}`));
+    if (!open.length && !done.length) lines.push("- (ไม่มีงาน)");
+  });
+  return `วันนี้: ${TODAY}\n` + lines.join("\n");
+}
+async function runAI(kind){
+  const out = $("#aiOut"); if (!out) return;
+  const sample = await (window.claude && window.claude.use ? window.claude.use("sample") : null);
+  if (!sample) { out.textContent = "AI ใช้ไม่ได้ในมุมมองนี้ (เปิดหน้านี้ใน claude.ai)"; return; }
+  if (S.aiCtl) S.aiCtl.abort();
+  const ctl = S.aiCtl = new AbortController();
+  const prompt = kind === "weekly"
+    ? `คุณเป็นผู้ช่วยทีม เขียน "รายงานประจำสัปดาห์" ภาษาไทย แยกตามลูกค้า (client) จากข้อมูลงาน 7 วันล่าสุดด้านล่าง\nแต่ละลูกค้า: งานที่เสร็จ, งานที่ค้าง/เสี่ยงเลยกำหนด, ข้อสังเกตสั้นๆ 1 บรรทัด ปิดท้ายด้วยภาพรวมทีม 2-3 บรรทัด\nใช้ข้อความล้วน หัวข้อเป็นชื่อลูกค้า bullet ด้วย "•" ห้ามแต่งข้อมูลที่ไม่มีในรายการ\n\n${officeDigest(7)}`
+    : `คุณเป็นผู้ช่วยทีม เขียน "Daily standup" ภาษาไทยจากข้อมูลงานด้านล่าง สั้น อ่านจบใน 1 นาที\nแยกตามคน: เมื่อวาน/วันนี้เสร็จอะไร, วันนี้โฟกัสอะไร, ติดอะไร (งานเลยกำหนด) แล้วปิดด้วย "ต้องดูด่วน" ไม่เกิน 3 ข้อ\nใช้ข้อความล้วน bullet ด้วย "•" ห้ามแต่งข้อมูลที่ไม่มีในรายการ\n\n${officeDigest(2)}`;
+  out.textContent = "กำลังคิด…";
+  try {
+    const res = await sample(prompt, {signal:ctl.signal, cache:false, modelTier:"default", onText: ({text}) => { out.textContent = text; }});
+    out.textContent = res.text; S.aiText = res.text;
+  } catch (e) { if (e && e.code !== "cancelled") out.textContent = (e && e.text ? e.text + "\n\n" : "") + aiErr(e); }
+}
+async function breakDown(id){
+  const t = ((myRoom() || {}).tasks || []).find(x => x.id === id); if (!t) return;
+  const sample = await (window.claude && window.claude.use ? window.claude.use("sample") : null);
+  if (!sample) { toast("AI ใช้ไม่ได้ในมุมมองนี้"); return; }
+  toast("✨ AI กำลังแตกงาน…");
+  try {
+    const list = await sample.json(`แตกงานต่อไปนี้เป็นงานย่อยที่ลงมือทำได้จริง 3-6 ข้อ เรียงตามลำดับทำ ภาษาไทย สั้นข้อละไม่เกิน 60 ตัวอักษร\nลูกค้า: ${clientName(t)}\nงาน: ${t.title}${t.note ? "\nโน้ต: " + t.note : ""}\nตอบเป็น JSON array ของ string เท่านั้น`, {modelTier:"quick"});
+    const subs = (Array.isArray(list) ? list : []).filter(x => typeof x === "string" && x.trim()).slice(0, 6);
+    if (!subs.length) { toast("AI ไม่ได้ส่งงานย่อยกลับมา ลองใหม่อีกครั้ง"); return; }
+    const now = new Date().toISOString();
+    subs.forEach(x => saveTask(uid() + uid(), {owner:S.myId, clientId:t.clientId, title:("↳ " + x.trim()).slice(0, 140), due:t.due || null, note:"งานย่อยของ: " + t.title, done:false, doneAt:null, createdAt:now, parent:t.id}));
+    logAct("split", `แตกงาน "${t.title}" เป็น ${subs.length} งานย่อย`);
+    toast(`เพิ่มงานย่อย ${subs.length} งานแล้ว`);
+  } catch (e) { toast(aiErr(e)); }
+}
 let toastT;
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
 
@@ -495,23 +636,31 @@ function render(){
           <div class="hud">
             <button id="music" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 2v8.3A2.5 2.5 0 1 0 7.5 12.5V5h5v3.3A2.5 2.5 0 1 0 14 10.5V2z"/></svg><span>เพลง: ปิด</span></button>
             <label title="ความดัง"><input type="range" id="vol" min="0" max="1" step="0.05" value="0.5" aria-label="ความดังเพลง"></label>
+            <button id="bell" aria-label="การแจ้งเตือน">🔔<span id="bellN"></span></button>
             <button id="fs">เต็มจอ</button>
           </div>
         </div>
-        <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas>
+        <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas></div>
+        <div class="ctrlrow">
           <div class="dpad" aria-label="ปุ่มเดิน">
             <span></span><button data-dir="up" aria-label="ขึ้น">▲</button><span></span>
             <button data-dir="left" aria-label="ซ้าย">◀</button><span></span><button data-dir="right" aria-label="ขวา">▶</button>
             <span></span><button data-dir="down" aria-label="ลง">▼</button><span></span>
           </div>
-          <button class="prompt" id="prompt" hidden></button>
+          <div class="ctrlmid">
+            <button class="prompt" id="prompt" hidden></button>
+            <div class="emotes" aria-label="อีโมต">${EMOTES.map((e, i) => `<button data-emote="${i}" aria-label="อีโมต ${e}" title="กด ${i+1}">${e}</button>`).join("")}</div>
+          </div>
         </div>
         <form class="chatbar" id="chatbar"><input type="text" id="say" maxlength="80" autocomplete="off" placeholder="พิมพ์ข้อความลอยเหนือหัว แล้วกด Enter"><button type="submit">ส่ง</button></form>
-        <div class="keys">เดิน <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> หรือลูกศร · คลิก/แตะพื้นเพื่อเดินไปตรงนั้น · <kbd>E</kbd> เปิดห้องเมื่อยืนหน้าโต๊ะ · <kbd>Enter</kbd> พิมพ์แชท</div>
+        <div class="keys">เดิน <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> หรือลูกศร · คลิก/แตะพื้นเพื่อเดินไปตรงนั้น · <kbd>E</kbd> เปิดห้อง/กระดานเมื่อยืนใกล้ · <kbd>1</kbd>–<kbd>5</kbd> อีโมต · <kbd>Enter</kbd> พิมพ์แชท</div>
       </div>
       <aside class="side">
         <section class="card"><h3>ออนไลน์ตอนนี้ <span class="count" id="onlineCount">1</span><small id="connState"></small></h3><ul id="online"></ul></section>
+        <section class="card me-card" id="meCard" hidden></section>
+        <section class="card"><h3>📌 กระดานทีม <button class="btn ghost mini" id="boardOpen" style="margin-left:auto">เปิด</button></h3><div class="board-snip" id="boardSnip"></div></section>
         <section class="card"><h3>แชทในออฟฟิศ</h3><ul id="chatlog"></ul></section>
+        <section class="card"><h3>ความเคลื่อนไหว</h3><ul id="feed" class="feed"></ul></section>
       </aside>
     </div>
     <div class="hint" id="below"></div>
@@ -530,6 +679,12 @@ function render(){
   if (S.editing && S.myId) { modal.hidden = false; renderSetup(body); }
   else if (S.moveTo != null && myRoom()) { modal.hidden = false; body.innerHTML = `<div class="panel"><div class="who"><h2>ย้ายโต๊ะ</h2></div><p>ย้ายห้อง “${esc(myRoom().roomName || "ของคุณ")}” มาที่โต๊ะนี้ใช่ไหม งานและการแต่งโต๊ะจะย้ายตามมาด้วย</p><div class="actions" style="display:flex;gap:8px"><button class="btn primary" id="moveok">ย้ายเลย</button><button class="btn ghost" id="cancel">ยกเลิก</button></div></div>`; }
   else if (S.openRoom && S.rooms.find(x => x.id === S.openRoom)) { modal.hidden = false; renderRoom(body, S.rooms.find(x => x.id === S.openRoom)); }
+  else if (S.openBoard) { modal.hidden = false; renderBoard(body); }
+  else if (S.openInbox) { modal.hidden = false; const mineActs = S.acts.filter(a => (a.to || []).includes(S.myId));
+    body.innerHTML = `<div class="panel"><div class="who"><h2>🔔 ถึงคุณ</h2><span class="note">งานที่มอบหมายให้คุณ คอมเมนต์ในงานของคุณ และการ @ถึงคุณ</span></div>
+      <ul class="feed" style="max-height:none">${mineActs.map(actLine).join("") || `<li class="note">ยังไม่มีอะไรถึงคุณ</li>`}</ul>
+      <h3 style="font-size:15px">ทั้งออฟฟิศ</h3><ul class="feed" style="max-height:none">${S.acts.slice(0, 40).map(actLine).join("") || `<li class="note">ยังไม่มีความเคลื่อนไหว</li>`}</ul>
+      <div class="actions"><button class="btn ghost" id="back">ปิด</button></div></div>`; }
   else { S.openRoom = null; modal.hidden = true; }
   if (!modal.hidden && !wasOpen) modal.querySelector(".modal-card").scrollTop = 0;
 }
@@ -685,12 +840,14 @@ addEventListener("keydown", e => {
   const d = KEYMAP[e.code];
   if (d) { MAP.keys.add(d); MAP.target = null; e.preventDefault(); }
   if (e.code === "KeyE" && MAP.near) openNear();
+  const n = ["Digit1","Digit2","Digit3","Digit4","Digit5"].indexOf(e.code); if (n >= 0) emote(n);
 });
 addEventListener("keyup", e => { const d = KEYMAP[e.code]; if (d) MAP.keys.delete(d); });
 addEventListener("blur", () => MAP.keys.clear());
 function openNear(){ if (MAP.near) deskAction(MAP.near.id); }
 function deskAction(id){
   MAP.keys.clear();
+  if (id === "__board") { S.openBoard = true; S.openRoom = null; S.openInbox = false; render(); return; }
   if (id.startsWith("__free:")) {
     const idx = +id.slice(7);
     if (!S.myId) { toast("ล็อกอิน claude.ai ก่อน ถึงจะจองโต๊ะได้"); return; }
@@ -768,6 +925,8 @@ function drawScene(){
     if (r && busy && !online.has(r.id)) px(g, BACK, Number(r.avatar)||0, dx + 18, dy + 13, 0);
     MAP.hits.push({id, desk:chairFront, x:s.x, y:s.y, w:4*T - 4, h:4*T});
   });
+  MAP.hits.push({id:"__board", desk:{x:6*T + 26, y:2*T + 10}, x:6*T - 2, y:2, w:56, h:2*T});
+  if (S.board && S.board.text) { g.fillStyle = P.danger; g.fillRect(6*T + 46, 6, 4, 4); }
   // characters, y-sorted
   const chars = [];
   if (MAP.me && S.view === "office") chars.push({x:MAP.me.x, y:MAP.me.y, dir:MAP.me.dir, moving:MAP.me.moving, look:myLook(), me:true});
@@ -801,6 +960,13 @@ function draw(){
   c.setTransform(1,0,0,1,0,0); c.imageSmoothingEnabled = false;
   c.drawImage(MAP.off, 0, 0, MAP.canvas.width, MAP.canvas.height);
   c.setTransform(k, 0, 0, k, 0, 0);
+  // light follows the real clock: warm at golden hour, dim blue at night (monitors stay bright)
+  const hr = new Date().getHours() + new Date().getMinutes() / 60;
+  const tint = hr >= 19 || hr < 6 ? "rgba(24,30,78,.30)" : hr >= 17 ? "rgba(255,140,60,.12)" : hr < 8 ? "rgba(255,200,140,.10)" : null;
+  if (tint) {
+    c.fillStyle = tint; c.fillRect(0, 0, MAP.w, MAP.h);
+    if (hr >= 19 || hr < 6) { c.globalCompositeOperation = "lighter"; c.fillStyle = "rgba(94,240,210,.10)"; MAP.slots.forEach((sl, i) => { if (MAP.order[i]) c.fillRect(sl.x + 10, sl.y - 2, 44, 22); }); c.globalCompositeOperation = "source-over"; }
+  }
   c.font = "700 9px 'Pixelify Sans', monospace"; c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "middle";
   c.fillText("PIXEL HQ", 24.5*T, 16.5);
   c.font = "600 5.5px 'IBM Plex Sans Thai', sans-serif"; c.fillStyle = P.muted;
@@ -830,11 +996,11 @@ function draw(){
   };
   const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
   if (MAP.me && S.view === "office") {
-    tag(MAP.me.x, MAP.me.y - 29, "คุณ", true);
+    tag(MAP.me.x, MAP.me.y - 29, S.myId && myRoom() ? `คุณ · Lv${progOf(S.myId).level}` : "คุณ", true);
     if (MAP.me.say && now - MAP.me.sayAt < 7000) bubble(c, P, MAP.me.x, MAP.me.y - 35, MAP.me.say, "say", 140);
   }
   Object.values(MAP.remote).forEach(r => {
-    tag(r.x, r.y - 29, cut(r.by ? nameOf(r.by) : "ผู้มาเยือน", 14), false);
+    tag(r.x, r.y - 29, cut(r.by ? nameOf(r.by) : "ผู้มาเยือน", 12) + (r.by && S.rooms.some(x => x.id === r.by) ? ` · Lv${progOf(r.by).level}` : ""), false);
     if (r.say && now - r.sayAt < 7000) bubble(c, P, r.x, r.y - 35, r.say, "say", 140);
   });
 }
@@ -889,7 +1055,7 @@ function updatePrompt(){
   const n = MAP.near;
   if (!n) { el.hidden = true; return; }
   const r = S.rooms.find(x => x.id === n.id);
-  el.textContent = n.id.startsWith("__free:") ? (myRoom() ? "กด E หรือแตะที่นี่ เพื่อย้ายมาโต๊ะนี้" : "กด E หรือแตะที่นี่ เพื่อจองโต๊ะนี้") : `กด E หรือแตะที่นี่ เพื่อเปิด ${r ? (r.roomName || nameOf(r.id)) : "ห้อง"}`;
+  el.textContent = n.id === "__board" ? "กด E หรือแตะที่นี่ เพื่อเปิดกระดานทีม" : n.id.startsWith("__free:") ? (myRoom() ? "กด E หรือแตะที่นี่ เพื่อย้ายมาโต๊ะนี้" : "กด E หรือแตะที่นี่ เพื่อจองโต๊ะนี้") : `กด E หรือแตะที่นี่ เพื่อเปิด ${r ? (r.roomName || nameOf(r.id)) : "ห้อง"}`;
   el.hidden = false;
 }
 function loop(t){
@@ -923,7 +1089,7 @@ function connectRoom(room){
       if (say && typeof say.t === "string" && say.at !== r.sayKey) {
         r.sayKey = say.at;
         const text = say.t.slice(0, 80);
-        if (r.sayInit) { r.say = text; r.sayAt = Date.now(); if (!S.db) pushChat(r.by, text, false); }
+        if (r.sayInit) { r.say = text; r.sayAt = Date.now(); if (!S.db && !say.emo) pushChat(r.by, text, false); }
         else if (Date.now() - Number(say.at) < 7000) { r.say = text; r.sayAt = Date.now(); }
       }
       r.sayInit = true;
@@ -934,6 +1100,11 @@ function connectRoom(room){
   }, () => { renderSide(); });
   room.onConnection(() => renderSide(), () => {});
   sendPresence();
+}
+function emote(i){
+  const e = EMOTES[i]; if (!e || !MAP.me) return;
+  MAP.me.say = e; MAP.me.sayAt = Date.now();
+  if (S.room) S.room.presence({say:{t:e, at:Date.now(), emo:1}}).catch(() => {});
 }
 function pushChat(by, text, mine){
   MAP.chat.push({by, text, mine, at:Date.now()});
@@ -957,9 +1128,9 @@ let pruned = false;
 function pruneChat(){
   if (pruned || !S.db) return; pruned = true;
   const cut = Date.now() - 14 * 864e5;
-  S.db.collection("chat").where("at", "<", cut).limit(100).get()
-    .then(snap => snap.docs.forEach(d => { chain = chain.then(() => S.db.collection("chat").doc(d.id).delete()).catch(() => {}); }))
-    .catch(() => {});
+  ["chat", "activity"].forEach(col => S.db.collection(col).where("at", "<", cut).limit(100).get()
+    .then(snap => snap.docs.forEach(d => { chain = chain.then(() => S.db.collection(col).doc(d.id).delete()).catch(() => {}); }))
+    .catch(() => {}));
 }
 function chatItems(){
   if (S.db && S.chatReady) return S.chat.map(m => ({by:m.by, text:m.text, at:m.at, mine: !!S.myId && m.by === S.myId}));
@@ -988,6 +1159,30 @@ function renderSide(){
   const sayIn = $("#say"); if (sayIn) { const ro = !!(S.db && S.readOnly); sayIn.disabled = ro; if (ro) sayIn.placeholder = "ดูได้อย่างเดียว ส่งข้อความไม่ได้"; }
   if (S.user && items.length) { const miss = [...new Set(items.map(m => m.by).filter(id => id && !S.profiles[id] && !(S.tried = S.tried || new Set()).has(id)))]; if (miss.length && !S.fetchingProfiles) { S.fetchingProfiles = true; miss.forEach(id => S.tried.add(id)); S.user.profiles(miss).then(ps => { Object.assign(S.profiles, ps); S.fetchingProfiles = false; renderSide(); }, () => { S.fetchingProfiles = false; }); } }
   log.scrollTop = log.scrollHeight;
+  renderExtras();
+}
+function actLine(a){
+  const who = a.by === S.myId ? "คุณ" : nameOf(a.by);
+  const d = new Date(a.at), when = ymd(d) === TODAY ? d.toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"}) : d.toLocaleDateString("th-TH", {day:"numeric", month:"short"});
+  return `<li class="${(a.to || []).includes(S.myId) ? "tome" : ""}"><span><b>${esc(who)}</b> ${esc(a.text)}</span><time>${esc(when)}</time></li>`;
+}
+function renderExtras(){
+  const n = unread(), bn = $("#bellN"); if (bn) bn.textContent = n ? String(Math.min(n, 99)) : "";
+  const feed = $("#feed");
+  if (feed) feed.innerHTML = S.acts.slice(0, 25).map(actLine).join("") || `<li class="note">ยังไม่มีความเคลื่อนไหว เพิ่มหรือปิดงานแล้วจะขึ้นที่นี่</li>`;
+  const snip = $("#boardSnip");
+  if (snip) { const t = S.board && S.board.text; snip.textContent = t || "ยังไม่มีประกาศ กดเปิดเพื่อเขียน หรือเดินไปที่ไวท์บอร์ดบนผนัง"; snip.classList.toggle("empty-b", !t); }
+  const mc = $("#meCard");
+  if (mc) {
+    if (!S.myId || !myRoom()) { mc.hidden = true; }
+    else {
+      const p = progOf(S.myId), pct = Math.max(4, Math.min(100, Math.round((p.xp - p.cur) / Math.max(1, p.next - p.cur) * 100)));
+      mc.hidden = false;
+      mc.innerHTML = `<div class="lvl"><span class="lvbadge">Lv.${p.level}</span><div class="xpbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="XP ไปเลเวลถัดไป"><i style="width:${pct}%"></i></div></div>
+        <small>${p.xp} XP · อีก ${Math.max(0, p.next - p.xp)} XP ถึง Lv.${p.level + 1}${p.streak ? ` · 🔥 สตรีค ${p.streak} วัน` : ""}</small>
+        <small>ปิดงาน +${XP_BASE} XP · ทันกำหนด +${XP_ONTIME} · เลเวลอัปปลดล็อกของแต่งโต๊ะ</small>`;
+    }
+  }
 }
 
 /* chiptune lo-fi, generated in the browser */
@@ -1031,10 +1226,13 @@ function renderSetup(m){
   const d = S.setupDeco || decoOf(r);
   const lookBtn = i => `<button type="button" class="pick" data-look="${i}" aria-pressed="${S.setupLook === i}" aria-label="ตัวละคร ${i+1}"><canvas></canvas></button>`;
   const idx = LOOKS.map((_, i) => i);
-  const chips = (key, list) => list.map(([v, label]) => `<button type="button" class="dchip" data-deco="${key}:${v}" aria-pressed="${d[key] === v}">${esc(label)}</button>`).join("");
-  const swatches = (key, list) => list.map((c, i) => `<button type="button" class="swatch" data-deco="${key}:${i}" aria-pressed="${d[key] === i}" aria-label="สี ${i+1}" style="background:${Array.isArray(c) ? c[0] : c}"></button>`).join("");
+  const lv = progOf(S.myId).level;
+  const chips = (key, list) => list.map(([v, label], i) => { const need = lockLv(key, i), locked = need > lv && d[key] !== v;
+    return `<button type="button" class="dchip" data-deco="${key}:${v}" aria-pressed="${d[key] === v}" ${locked ? `disabled title="ปลดล็อกที่ Lv.${need}"` : ""}>${esc(label)}${locked ? `<span class="lk">🔒${need}</span>` : ""}</button>`; }).join("");
+  const swatches = (key, list) => list.map((c, i) => { const need = lockLv(key, i), locked = need > lv && d[key] !== i;
+    return `<button type="button" class="swatch" data-deco="${key}:${i}" aria-pressed="${d[key] === i}" aria-label="สี ${i+1}${locked ? ` ล็อกถึง Lv.${need}` : ""}" ${locked ? `disabled title="ปลดล็อกที่ Lv.${need}"` : ""} style="background:${Array.isArray(c) ? c[0] : c}"></button>`; }).join("");
   m.innerHTML = `<form class="panel setup" id="setup">
-    <div class="who"><h2>${r ? "แก้ไขห้องและแต่งโต๊ะ" : "จองโต๊ะทำงาน"}</h2><span class="note">${r ? "เปลี่ยนตัวละคร แต่งโต๊ะ หรือเพิ่มลูกค้า" : "ตั้งชื่อห้อง เลือกตัวละคร แต่งโต๊ะ แล้วใส่ลูกค้าที่คุณดูแล"}</span></div>
+    <div class="who"><h2>${r ? "แก้ไขห้องและแต่งโต๊ะ" : "จองโต๊ะทำงาน"} <span class="lvbadge">Lv.${lv}</span></h2><span class="note">${r ? "เปลี่ยนตัวละคร แต่งโต๊ะ หรือเพิ่มลูกค้า" : "ตั้งชื่อห้อง เลือกตัวละคร แต่งโต๊ะ แล้วใส่ลูกค้าที่คุณดูแล"}</span></div>
     <div class="field"><label for="f-name">ชื่อห้อง</label><input type="text" id="f-name" maxlength="40" placeholder="เช่น ห้องสายคอนเทนต์" value="${esc(r ? r.roomName : "")}"></div>
     <div class="field"><span class="lab">ตัวละครผู้หญิง</span><div class="picks">${idx.filter(i => LOOKS[i].f).map(lookBtn).join("")}</div></div>
     <div class="field"><span class="lab">ตัวละครผู้ชาย</span><div class="picks">${idx.filter(i => !LOOKS[i].f).map(lookBtn).join("")}</div></div>
@@ -1063,41 +1261,75 @@ function drawPreview(){
   drawDesk(g, P, 12, 10, {deco:S.setupDeco || DEFAULT_DECO, busy:true, mons:2, anim:MAP.anim});
   px(g, BACK, S.setupLook, 30, 23, 0);
 }
+function renderBoard(m){
+  if (m.querySelector("#boardForm")) return; // keep the editor intact while typing
+  const b = S.board || {};
+  m.innerHTML = `<div class="panel"><div class="who"><h2>📌 กระดานทีม</h2><span class="note">${b.at ? `แก้ล่าสุดโดย ${esc(b.by === S.myId ? "คุณ" : nameOf(b.by))} · ${esc(new Date(b.at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}))}` : "ประกาศ เป้าหมายสัปดาห์ ลิงก์สำคัญ ใครก็เขียนได้"}</span></div>
+    ${canWrite() ? `<form id="boardForm" class="editform"><textarea name="text" maxlength="2000" rows="9" style="min-height:180px" aria-label="ข้อความบนกระดาน">${esc(b.text || "")}</textarea>
+      <div class="row"><button class="btn primary" type="submit">บันทึกกระดาน</button><button class="btn ghost" type="button" id="back">ปิด</button></div></form>`
+      : `<div class="board-snip" style="max-height:none">${esc(b.text || "ยังไม่มีประกาศ")}</div><div class="actions"><button class="btn ghost" id="back">ปิด</button></div>`}
+  </div>`;
+}
+function taskLi(t, opts){
+  const own = isOwnerOf(t), touch = canTouch(t);
+  if (own && S.editTask === t.id) {
+    const opt = id => `<option value="${esc(id)}" ${t.assignee === id ? "selected" : ""}>${esc(id === S.myId ? "ตัวเอง" : nameOf(id))}</option>`;
+    return `<li class="task editing"><form class="editform" data-edittask="${esc(t.id)}">
+      <input type="text" name="title" maxlength="140" required value="${esc(t.title)}" aria-label="ชื่องาน">
+      <div class="row"><input type="date" name="due" value="${esc(t.due || "")}" aria-label="กำหนดส่ง">
+        <select name="assignee" aria-label="มอบหมายให้"><option value="">ไม่ได้มอบหมาย</option>${members().filter(id => id !== S.myId).map(opt).join("")}</select></div>
+      <textarea name="note" maxlength="600" placeholder="โน้ต / รายละเอียด (ไม่บังคับ)" aria-label="โน้ต">${esc(t.note || "")}</textarea>
+      <div class="row"><button class="btn primary" type="submit">บันทึก</button><button class="btn ghost" type="button" data-canceledit="1">ยกเลิก</button></div>
+    </form></li>`;
+  }
+  const d = dueInfo(t), cm = t.comments || [];
+  const chips = [];
+  if (opts && opts.from) chips.push(`<span class="mini-chip">จาก ${esc(nameOf(t.owner))} · ${esc(clientName(t))}</span>`);
+  if (t.assignee && !(opts && opts.from)) chips.push(`<span class="mini-chip asg">→ ${esc(t.assignee === S.myId ? "คุณ" : nameOf(t.assignee))}</span>`);
+  if (cm.length) chips.push(`<button class="mini-chip" data-thread="${esc(t.id)}" aria-expanded="${S.openThread === t.id}">💬 ${cm.length}</button>`);
+  const thread = S.openThread === t.id ? `<div class="thread">
+      ${cm.map(c => `<div class="c"><b>${esc(c.by === S.myId ? "คุณ" : nameOf(c.by))}</b>${esc(c.text)}<time>${new Date(c.at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</time></div>`).join("") || `<span class="note">ยังไม่มีคอมเมนต์</span>`}
+      ${canWrite() ? `<form data-comment="${esc(t.id)}"><input type="text" maxlength="300" required placeholder="พิมพ์คอมเมนต์ ใช้ @ชื่อ เพื่อเรียกเพื่อน" aria-label="คอมเมนต์"><button class="btn primary" type="submit">ส่ง</button></form>` : ""}
+    </div>` : "";
+  return `<li class="task${t.done ? " done" : ""}">
+    <input type="checkbox" data-toggle="${esc(t.id)}" ${t.done ? "checked" : ""} ${touch ? "" : "disabled"} aria-label="ทำเสร็จแล้ว">
+    <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}${t.note ? `<span class="tn">${esc(t.note)}</span>` : ""}
+      ${chips.length ? `<span class="meta">${chips.join("")}</span>` : ""}${thread}</span>
+    ${!cm.length && canWrite() ? `<button class="edt" data-thread="${esc(t.id)}" aria-label="คอมเมนต์" title="คอมเมนต์">💬</button>` : ""}
+    ${own && !t.done ? `<button class="ai" data-split="${esc(t.id)}" aria-label="ให้ AI แตกงานนี้เป็นงานย่อย" title="AI แตกงาน">✨</button>` : ""}
+    ${own ? `<button class="edt" data-edit="${esc(t.id)}" aria-label="แก้ไขงาน">✎</button><button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`;
+}
 function renderRoom(m, r){
   const mine = r.id === S.myId && !S.readOnly;
-  const s = roomStats(r);
+  const s = roomStats(r), pg = progOf(r.id);
+  const byDue = (a,b) => (a.due||"9999").localeCompare(b.due||"9999");
   const cols = (r.clients || []).map(c => {
     const all = (r.tasks || []).filter(t => t.clientId === c.id);
-    const open = all.filter(t => !t.done).sort((a,b) => (a.due||"9999").localeCompare(b.due||"9999"));
+    const open = all.filter(t => !t.done).sort(byDue);
     const doneAll = all.filter(t => t.done).sort((a,b) => (b.doneAt||"").localeCompare(a.doneAt||""));
     const done = doneAll.filter(t => !isArchived(t)), archived = doneAll.length - done.length;
-    const li = t => {
-      if (mine && S.editTask === t.id) return `<li class="task editing"><form class="editform" data-edittask="${esc(t.id)}">
-        <input type="text" name="title" maxlength="140" required value="${esc(t.title)}" aria-label="ชื่องาน">
-        <div class="row"><input type="date" name="due" value="${esc(t.due || "")}" aria-label="กำหนดส่ง"></div>
-        <textarea name="note" maxlength="600" placeholder="โน้ต / รายละเอียด (ไม่บังคับ)" aria-label="โน้ต">${esc(t.note || "")}</textarea>
-        <div class="row"><button class="btn primary" type="submit">บันทึก</button><button class="btn ghost" type="button" data-canceledit="1">ยกเลิก</button></div>
-      </form></li>`;
-      const d = dueInfo(t); return `<li class="task${t.done ? " done" : ""}">
-        <input type="checkbox" data-toggle="${esc(t.id)}" ${t.done ? "checked" : ""} ${mine ? "" : "disabled"} aria-label="ทำเสร็จแล้ว">
-        <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}${t.note ? `<span class="tn">${esc(t.note)}</span>` : ""}</span>
-        ${mine ? `<button class="edt" data-edit="${esc(t.id)}" aria-label="แก้ไขงาน">✎</button><button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`; };
     return `<section class="col">
       <div class="col-head"><h3>${esc(c.name)}</h3><span class="n">${open.length}</span>${mine ? `<button class="x" data-rmclient="${esc(c.id)}" aria-label="ลบลูกค้า ${esc(c.name)}">×</button>` : ""}</div>
-      <ul class="tasks">${open.map(li).join("") || `<li class="note">ไม่มีงานค้าง</li>`}</ul>
-      ${done.length ? `<details><summary>เสร็จแล้ว ${done.length}</summary><ul class="tasks" style="margin-top:6px">${done.slice(0,20).map(li).join("")}</ul></details>` : ""}
+      <ul class="tasks">${open.map(t => taskLi(t)).join("") || `<li class="note">ไม่มีงานค้าง</li>`}</ul>
+      ${done.length ? `<details><summary>เสร็จแล้ว ${done.length}</summary><ul class="tasks" style="margin-top:6px">${done.slice(0,20).map(t => taskLi(t)).join("")}</ul></details>` : ""}
       ${archived ? `<span class="archived-note">เก็บเข้าคลังแล้ว ${archived} งาน (เสร็จเกิน ${ARCHIVE_DAYS} วัน)</span>` : ""}
       ${mine ? `<form class="addform" data-add="${esc(c.id)}"><input type="text" id="t-${esc(c.id)}" placeholder="เพิ่มงาน…" maxlength="140" required><input type="date" id="d-${esc(c.id)}" aria-label="กำหนดส่ง"><button class="btn primary" type="submit">เพิ่ม</button></form>` : ""}
     </section>`;
   }).join("");
+  // tasks other people handed to this person
+  const given = []; S.rooms.forEach(o => { if (o.id !== r.id) (o.tasks || []).forEach(t => { if (t.assignee === r.id && !isArchived(t)) given.push(t); }); });
+  const gOpen = given.filter(t => !t.done).sort(byDue), gDone = given.filter(t => t.done);
+  const givenCol = given.length ? `<section class="col"><div class="col-head"><h3>📥 ได้รับมอบหมาย</h3><span class="n">${gOpen.length}</span></div>
+      <ul class="tasks">${gOpen.map(t => taskLi(t, {from:true})).join("") || `<li class="note">ไม่มีงานค้าง</li>`}</ul>
+      ${gDone.length ? `<details><summary>เสร็จแล้ว ${gDone.length}</summary><ul class="tasks" style="margin-top:6px">${gDone.slice(0,20).map(t => taskLi(t, {from:true})).join("")}</ul></details>` : ""}</section>` : "";
   m.innerHTML = `<div class="panel">
     <div class="panel-head">
       <canvas data-look="${Number(r.avatar)||0}"></canvas>
-      <div class="who"><h2>${esc(r.roomName || nameOf(r.id))}</h2><span>${esc(mine ? "ห้องของคุณ" : "ห้องของ " + nameOf(r.id))} · ค้าง ${s.open} · วันนี้ ${s.today} · เลยกำหนด ${s.late}</span></div>
+      <div class="who"><h2>${esc(r.roomName || nameOf(r.id))}<span class="room-lv"><span class="lvbadge">Lv.${pg.level}</span>${pg.streak ? `<span class="mini-chip">🔥 ${pg.streak} วัน</span>` : ""}</span></h2><span>${esc(mine ? "ห้องของคุณ" : "ห้องของ " + nameOf(r.id))} · ค้าง ${s.open} · วันนี้ ${s.today} · เลยกำหนด ${s.late} · ${pg.xp} XP</span></div>
       <div class="actions">${mine ? `<button class="btn" id="edit">แต่งโต๊ะ / เพิ่มลูกค้า</button>` : ""}<button class="btn ghost" id="back">ปิด</button></div>
     </div>
-    ${cols ? `<div class="cols">${cols}</div>` : `<div class="empty"><b>ยังไม่มีลูกค้า</b><span>${mine ? "กด “แต่งโต๊ะ / เพิ่มลูกค้า” เพื่อเพิ่มลูกค้าคนแรก" : "เจ้าของห้องยังไม่ได้ใส่ลูกค้า"}</span></div>`}
-    ${mine ? "" : `<p class="note">ดูได้อย่างเดียว เฉพาะเจ้าของห้องที่เพิ่มหรือติ๊กงานในห้องนี้ได้</p>`}
+    ${cols || givenCol ? `<div class="cols">${givenCol}${cols}</div>` : `<div class="empty"><b>ยังไม่มีลูกค้า</b><span>${mine ? "กด “แต่งโต๊ะ / เพิ่มลูกค้า” เพื่อเพิ่มลูกค้าคนแรก" : "เจ้าของห้องยังไม่ได้ใส่ลูกค้า"}</span></div>`}
+    ${mine ? "" : `<p class="note">${canWrite() ? "เพิ่มหรือแก้งานได้เฉพาะเจ้าของห้อง แต่คอมเมนต์ได้ และติ๊กงานที่มอบหมายให้คุณได้" : "ดูได้อย่างเดียว"}</p>`}
   </div>`;
   drawSprite(m.querySelector(".panel-head canvas"), Number(r.avatar)||0);
 }
@@ -1122,6 +1354,7 @@ function groupHtml(title, img, items){
     ${open.length > 12 ? `<li class="note">และอีก ${open.length - 12} งาน</li>` : ""}</ul></section>`;
 }
 function renderSummary(m){
+  const prevOut = $("#aiOut"), keepAI = prevOut ? prevOut.textContent : (S.aiText || "");
   const all = collectOpen();
   let groups = "";
   if (S.sumMode === "person") {
@@ -1136,8 +1369,13 @@ function renderSummary(m){
       <div class="seg" role="group" aria-label="จัดกลุ่ม"><button data-mode="person" aria-pressed="${S.sumMode === "person"}">แยกตามคน</button><button data-mode="client" aria-pressed="${S.sumMode === "client"}">แยกตามลูกค้า</button></div>
       <button class="btn" id="copy" style="margin-left:auto">คัดลอกสรุปเป็นข้อความ</button>
     </div>
+    <div class="ai-box">
+      <div class="chiprow"><button class="btn primary" data-ai="standup">✨ Daily standup</button><button class="btn" data-ai="weekly">✨ รายงานสัปดาห์ (แยกลูกค้า)</button><button class="btn ghost" id="aiCopy" style="margin-left:auto">คัดลอก</button></div>
+      <div class="ai-out" id="aiOut" aria-live="polite"></div>
+    </div>
     ${groups ? `<div class="groups">${groups}</div>` : `<div class="empty"><b>ยังไม่มีงาน</b><span>เมื่อมีคนเพิ่มงานในห้อง สรุปจะขึ้นที่นี่</span></div>`}
   </div>`;
+  const ao = $("#aiOut"); if (ao && keepAI) ao.textContent = keepAI;
 }
 function summaryText(){
   const all = collectOpen().filter(t => !t.done);
@@ -1155,6 +1393,13 @@ document.addEventListener("click", e => {
   const t = e.target.closest("button, input[type=checkbox]");
   if (!t) return;
   if (t.id === "music") return toggleMusic();
+  if (t.id === "bell") { S.openInbox = true; S.openRoom = null; S.openBoard = false; markSeen(); return render(); }
+  if (t.id === "boardOpen") { S.openBoard = true; S.openRoom = null; S.openInbox = false; return render(); }
+  if (t.dataset.emote) return emote(+t.dataset.emote);
+  if (t.dataset.thread) { S.openThread = S.openThread === t.dataset.thread ? null : t.dataset.thread; render(); const i = document.querySelector(`form[data-comment="${CSS.escape(t.dataset.thread)}"] input`); if (i) i.focus(); return; }
+  if (t.dataset.split) return breakDown(t.dataset.split);
+  if (t.dataset.ai) return runAI(t.dataset.ai);
+  if (t.id === "aiCopy") { const txt = ($("#aiOut") || {}).textContent || ""; if (!txt.trim()) return; try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); } return; }
   if (t.id === "prompt") return openNear();
   if (t.id === "fs") { const st = $("#stage"); const on = !st.classList.contains("big"); st.classList.toggle("big", on); document.body.style.overflow = on ? "hidden" : ""; t.textContent = on ? "ย่อจอ" : "เต็มจอ"; sizeMap(); return; }
   if (t.dataset.dir) return;
@@ -1162,7 +1407,7 @@ document.addEventListener("click", e => {
   if (t.id === "tab-summary") { S.view = "summary"; return render(); }
   if (t.dataset.room) { S.openRoom = t.dataset.room; return render(); }
   if (t.id === "join") { S.editing = true; return render(); }
-  if (t.id === "back" || t.id === "mclose") { S.editTask = null; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "back" || t.id === "mclose") { S.editTask = null; S.openThread = null; S.openBoard = false; S.openInbox = false; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "edit") { S.openRoom = null; S.editing = true; S.setupLook = Number(myRoom().avatar)||0; S.setupDeco = decoOf(myRoom()); return render(); }
   if (t.id === "cancel") { S.editing = false; S.openRoom = null; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "moveok") { const to = S.moveTo; S.moveTo = null; saveMine(r => { r.desk = to; }); toast("ย้ายโต๊ะแล้ว"); return; }
@@ -1180,8 +1425,16 @@ document.addEventListener("click", e => {
     return;
   }
   if (t.dataset.toggle) {
-    const id = t.dataset.toggle, k = ((myRoom() || {}).tasks || []).find(x => x.id === id); if (!k) return;
-    const done = !k.done; return saveTask(id, {done, doneAt: done ? new Date().toISOString() : null});
+    const id = t.dataset.toggle, k = allTasks().find(x => x.id === id); if (!k || !canTouch(k)) return;
+    const done = !k.done, before = progOf(S.myId).level;
+    saveTask(id, {done, doneAt: done ? new Date().toISOString() : null, doneBy: done ? S.myId : null});
+    if (done) {
+      logAct("done", `ปิดงาน "${k.title}" (${clientName(k)})`, [k.owner, k.assignee]);
+      const after = progOf(S.myId).level;
+      toast(after > before ? `🎉 เลเวลอัป! ตอนนี้ Lv.${after} ปลดล็อกของแต่งโต๊ะใหม่แล้ว` : `+${XP_BASE + (k.due && TODAY <= k.due ? XP_ONTIME : 0)} XP`);
+      if (MAP.me) { MAP.me.say = "🎉"; MAP.me.sayAt = Date.now(); }
+    }
+    return;
   }
   if (t.dataset.edit) { S.editTask = t.dataset.edit; render(); const i = document.querySelector(".editform input[name=title]"); if (i) i.focus(); return; }
   if (t.dataset.canceledit) { S.editTask = null; return render(); }
@@ -1217,21 +1470,38 @@ document.addEventListener("submit", e => {
       r.roomName = name; r.avatar = S.setupLook; r.deco = Object.assign({}, S.setupDeco || DEFAULT_DECO);
       newClients.forEach(n => { if (!r.clients.some(c => c.name.toLowerCase() === n.toLowerCase())) r.clients.push({id:uid(), name:n}); });
     });
+    if (isNew) logAct("join", `ย้ายเข้าออฟฟิศ${name ? " ห้อง " + name : ""} 👋`, members());
     S.editing = false; S.setupDesk = null; S.openRoom = S.myId; toast(isNew ? "จองโต๊ะแล้ว ยินดีต้อนรับเข้าออฟฟิศ" : "บันทึกแล้ว"); return render();
   }
   if (f.dataset.edittask) {
     const id = f.dataset.edittask, title = f.elements.title.value.trim();
     if (!title) return;
+    const prev = allTasks().find(x => x.id === id) || {}, asg = f.elements.assignee ? (f.elements.assignee.value || null) : (prev.assignee || null);
     S.editTask = null;
-    saveTask(id, {title, due: f.elements.due.value || null, note: f.elements.note.value.trim().slice(0, 600)});
+    saveTask(id, {title, due: f.elements.due.value || null, note: f.elements.note.value.trim().slice(0, 600), assignee: asg});
+    if (asg && asg !== prev.assignee) { logAct("assign", `มอบงาน "${title}" ให้ ${nameOf(asg)}`, [asg]); toast(`มอบงานให้ ${nameOf(asg)} แล้ว`); }
+    else if (!asg && prev.assignee) logAct("assign", `ดึงงาน "${title}" กลับมาทำเอง`, [prev.assignee]);
     return;
   }
+  if (f.dataset.comment) {
+    const id = f.dataset.comment, inp = f.querySelector("input"), text = inp.value.replace(/\s+/g, " ").trim().slice(0, 300);
+    const k = allTasks().find(x => x.id === id); if (!text || !k || !canWrite()) return;
+    const comments = [...(k.comments || []), {id:uid(), by:S.myId, text, at:Date.now()}].slice(-50);
+    saveTask(id, {comments});
+    const ments = mentionsIn(text);
+    logAct("comment", `คอมเมนต์ในงาน "${k.title}": ${text}`, [k.owner, k.assignee, ...ments]);
+    setTimeout(() => { const i = document.querySelector(`form[data-comment="${CSS.escape(id)}"] input`); if (i) i.focus(); }, 0);
+    return;
+  }
+  if (f.id === "boardForm") { if (!canWrite()) return; saveBoard(f.elements.text.value.slice(0, 2000)); S.openBoard = false; toast("บันทึกกระดานแล้ว"); return render(); }
   if (f.dataset.add) {
     const cid = f.dataset.add;
     const title = f.querySelector("input[type=text]").value.trim();
     const due = f.querySelector("input[type=date]").value || null;
     if (!title) return;
     saveTask(uid() + uid(), {owner:S.myId, clientId:cid, title, due, note:"", done:false, doneAt:null, createdAt:new Date().toISOString()});
+    const cl = ((myRoom() || {}).clients || []).find(c => c.id === cid);
+    logAct("add", `เพิ่มงาน "${title}"${cl ? " ให้ " + cl.name : ""}`);
     setTimeout(() => { const i = document.getElementById("t-" + cid); if (i) i.focus(); }, 0);
   }
 });
@@ -1249,7 +1519,7 @@ render();
   // keep typing intact: don't re-render while an input is focused
   const softRender = () => {
     const a = document.activeElement;
-    if (a && a.matches && a.matches(".addform input, #setup input, #say, .editform input, .editform textarea")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
+    if (a && a.matches && a.matches(".addform input, #setup input, #say, .editform input, .editform textarea, .editform select, form[data-comment] input")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
     render();
   };
   db.collection("rooms").onSnapshot(async snap => {
@@ -1270,6 +1540,14 @@ render();
     S.taskDocs = snap.docs.map(d => Object.assign({}, d.data(), {id:d.id})).filter(t => typeof t.owner === "string" && typeof t.title === "string");
     mergeTasks(); softRender();
   }, () => toast("โหลดงานไม่สำเร็จ ลองเปิดหน้าใหม่"));
+  db.collection("activity").orderBy("at", "desc").limit(60).onSnapshot(snap => {
+    S.acts = snap.docs.map(d => d.data()).filter(a => a && typeof a.text === "string" && typeof a.at === "number" && typeof a.by === "string");
+    renderSide(); if (S.openInbox) render();
+  }, () => {});
+  db.doc("board/main").onSnapshot(d => {
+    const b = d.data(); S.board = b && typeof b.text === "string" ? b : null;
+    renderExtras(); if (S.openBoard && !document.querySelector("#boardForm")) render();
+  }, () => {});
   db.collection("chat").orderBy("at", "desc").limit(60).onSnapshot(snap => {
     S.chat = snap.docs.map(d => d.data()).filter(m => m && typeof m.text === "string" && typeof m.at === "number").reverse();
     S.chatReady = true; renderSide();
