@@ -15,3 +15,8 @@ Top-down pixel office for team task tracking. Runs as a claude.ai Artifact (sing
 | `board/main` | team board text |
 
 XP / level / streak are derived from finished tasks (nothing extra stored). Deco unlocks by level.
+
+## World (synced from production look)
+Map, lounge, coffee machine, snack corner, meeting/sofa seats, office cats, festival decor (Halloween etc.), focus timer, radio (3 generated tracks) and read-chat-aloud are ported from the production artifact. Coins/shop/missions are not: XP stays derived from finished tasks.
+
+Dev cheat (staging): `Alt+Shift+L` sets `rooms/<me>.xpBonus` to Lv200, `Alt+Shift+K` clears it.

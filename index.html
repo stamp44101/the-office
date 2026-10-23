@@ -254,6 +254,26 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 .archived-note{font-size:12px;color:var(--muted)}
 #chatlog li .day{font-size:11px;color:var(--muted);grid-column:1 / -1;text-align:center;margin:4px 0 0}
 .chatbar input:disabled{opacity:.6}
+
+.modal-card.narrow{width:min(560px,100%)}
+.pbtn{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--wall);background:var(--panel);color:var(--ink);border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;box-shadow:0 2px 0 var(--wall);white-space:nowrap}
+.pbtn[aria-pressed="true"]{background:var(--accent);color:#fff}
+.pbtn.focus-on{background:var(--accent2);color:#fff}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.item{border:2px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;min-width:0}
+.item b{font-size:14px}
+button.item{background:var(--panel);font:inherit;color:inherit}
+button.item:hover{border-color:var(--accent)}
+.tracks{display:flex;flex-wrap:wrap;gap:8px}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.catcard{border:2px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;background:var(--panel)}
+.catcard canvas{image-rendering:pixelated;width:96px;height:64px}
+.catcard b{font-size:15px}
+.catcard span{font-size:12px;color:var(--muted)}
+.mini{border:2px solid var(--line);background:var(--panel);border-radius:9px;padding:3px 10px;font-size:13px;font-weight:600}
+.mini.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.panel h2{font-size:20px;padding-right:40px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:520px){.brand h1{font-size:23px}.panel{padding:14px}}
 </style>
@@ -420,7 +440,7 @@ function drawDesk(g, P, dx, dy, o){
 
 /* ---------- state ---------- */
 const S = {db:null, user:null, room:null, myId:null, rooms:[], profiles:{}, ready:false, noDb:false,
-           view:"office", openRoom:null, editing:false, moveTo:null, setupDesk:null, setupDeco:null, sumMode:"person", setupLook:0, readOnly:false};
+           view:"office", openRoom:null, editing:false, miniModal:null, focus:null, hold:null, brew:null, myCat:null, track:0, tts:false, moveTo:null, setupDesk:null, setupDeco:null, sumMode:"person", setupLook:0, readOnly:false};
 
 const roomStats = r => {
   const tasks = (r.tasks || []);
@@ -635,14 +655,7 @@ function render(){
   if (!MAP.canvas || !m.contains(MAP.canvas)) {
     m.innerHTML = `<div class="game">
       <div class="stage" id="stage">
-        <div class="toolbar"><span class="tb-title">PIXEL HQ</span><span class="tb-on"><i class="live"></i>ออนไลน์ <b id="tbCount">1</b> คน</span>
-          <div class="hud">
-            <button id="music" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 2v8.3A2.5 2.5 0 1 0 7.5 12.5V5h5v3.3A2.5 2.5 0 1 0 14 10.5V2z"/></svg><span>เพลง: ปิด</span></button>
-            <label title="ความดัง"><input type="range" id="vol" min="0" max="1" step="0.05" value="0.5" aria-label="ความดังเพลง"></label>
-            <button id="bell" aria-label="การแจ้งเตือน">🔔<span id="bellN"></span></button>
-            <button id="fs">เต็มจอ</button>
-          </div>
-        </div>
+        <div class="toolbar" id="toolbar"></div>
         <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas></div>
         <div class="ctrlrow">
           <div class="dpad" aria-label="ปุ่มเดิน">
@@ -673,6 +686,7 @@ function render(){
     renderSide();
   }
   layoutMap();
+  renderToolbar(); renderExtras();
   $("#below").innerHTML = `
     <span><i style="background:var(--accent)"></i>แตะโต๊ะว่างเพื่อจอง หรือแตะโต๊ะเพื่อนเพื่อดูงาน</span>
     <span><i style="background:var(--danger)"></i>บับเบิลแดง = มีงานเลยกำหนด</span>
@@ -689,7 +703,9 @@ function render(){
       <ul class="feed" style="max-height:none">${mineActs.map(actLine).join("") || `<li class="note">ยังไม่มีอะไรถึงคุณ</li>`}</ul>
       <h3 style="font-size:15px">ทั้งออฟฟิศ</h3><ul class="feed" style="max-height:none">${S.acts.slice(0, 40).map(actLine).join("") || `<li class="note">ยังไม่มีความเคลื่อนไหว</li>`}</ul>
       <div class="actions"><button class="btn ghost" id="back">ปิด</button></div></div>`; }
+  else if (S.miniModal) { modal.hidden = false; renderMini(body); }
   else { S.openRoom = null; modal.hidden = true; }
+  const mc = modal.querySelector(".modal-card"); if (mc) mc.classList.toggle("narrow", !!S.miniModal && !modal.hidden && ["focus","radio","voice","coffee","snack"].includes(S.miniModal.kind));
   if (!modal.hidden && !wasOpen) modal.querySelector(".modal-card").scrollTop = 0;
 }
 
@@ -704,40 +720,13 @@ function renderStats(){
     <div class="stat"><b>${done}</b><span>เสร็จวันนี้</span></div>`;
 }
 
-/* ---------- game world: one shared office floor ---------- */
-const T = 16;
-const BACK = [
-  "..HHHHHH..",
-  ".HHHHHHHH.",
-  ".HHHHHHHH.",
-  ".HHHHHHHH.",
-  ".SHHHHHHS.",
-  "..HHHHHH..",
-  "..TTTTTT..",
-  ".TTTTTTTT.",
-  "STTTTTTTTS",
-  "S.TTTTTT.S",
-  "..PPPPPP..",
-  "..KK..KK..",
-];
-const SIDE = [
-  "..HHHHHH..",
-  ".HHHHHHHH.",
-  ".HHHSSSSS.",
-  ".HHSSSSES.",
-  ".HSSSSSSS.",
-  "..SSSSMS..",
-  "..TTTTTT..",
-  ".TTTTTTTT.",
-  ".TTTTTTTS.",
-  ".TTTTTTTS.",
-  "..PPPPPP..",
-  "..KK..KK..",
-];
-const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MAP = {canvas:null, ctx:null, off:null, octx:null, w:480, h:320, hT:20, slots:[], order:[], hits:[], solids:[],
-  hover:null, me:null, keys:new Set(), target:null, remote:{}, chat:[], last:0, anim:0, lastSent:"", near:null, dpad:null};
-
+/* ---------- world (ported from production): shared floor, lounge, cats, festivals ---------- */
+const hashStr = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+const clean = (s, n) => String(s || "").replace(new RegExp("[\\u0000-\\u001f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]", "g"), " ").trim().slice(0, n);
+const roomOf = id => S.rooms.find(r => r.id === id);
+const GEAR = {}; const drawGear = () => {};
+const BACK = ["..HHHHHH..",".HHHHHHHH.",".HHHHHHHH.",".HHHHHHHH.",".SHHHHHHS.","..HHHHHH..","..TTTTTT..",".TTTTTTTT.","STTTTTTTTS","S.TTTTTT.S","..PPPPPP..","..KK..KK.."];
+const SIDE = ["..HHHHHH..",".HHHHHHHH.",".HHHSSSSS.",".HHSSSSES.",".HSSSSSSS.","..SSSSMS..","..TTTTTT..",".TTTTTTTT.",".TTTTTTTS.",".TTTTTTTS.","..PPPPPP..","..KK..KK.."];
 function px(g, pat, look, x, y, step, flip, sc){
   sc = sc || 2;
   const p = lookOf(look);
@@ -748,21 +737,83 @@ function px(g, pat, look, x, y, step, flip, sc){
     [...r].forEach((c, xx) => { const col = p[c]; if (c !== "." && col) { g.fillStyle = col; g.fillRect(x + (flip ? 9 - xx : xx) * sc, y + yy * sc, sc, sc); } });
   });
 }
+function drawCrown(g, x, y){
+  const rows = ["Y.Y.Y.Y", "YYYYYYY", "YRYYYRY"];
+  rows.forEach((r, yy) => [...r].forEach((c, xx) => { if (c !== ".") { g.fillStyle = c === "Y" ? "#ffc83d" : "#ff4757"; g.fillRect(x + 3 + xx*2, y - 10 + yy*2, 2, 2); } }));
+}
+let ANIM = 0;
+const WEEK_START = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd)); })();
+const doneDayOf = t => t.doneAt ? ymd(new Date(t.doneAt)) : null;
+function starIds(){
+  let max = 0; const c = {};
+  S.rooms.forEach(r => { const n = roomStats(r).doneToday; c[r.id] = n; if (n > max) max = n; });
+  return max > 0 ? new Set(Object.keys(c).filter(k => c[k] === max)) : new Set();
+}
+function weekBoard(){
+  const by = {};
+  allTasks().forEach(t => { if (!t.done || !t.doneAt) return; const d = doneDayOf(t); if (d < WEEK_START) return; const who = t.doneBy || t.owner; const e = by[who] = by[who] || {id:who, n:0, onTime:true}; e.n++; if (t.due && d > t.due) e.onTime = false; });
+  return Object.values(by).filter(e => e.id !== AI_ID).sort((a,b) => b.n - a.n);
+}
+/* ---------- drinks + snacks ---------- */
+const DRINKS = [
+  {id:"americano", name:"อเมริกาโน่", c:"#3b2414", cup:"#ffffff"},
+  {id:"latte", name:"ลาเต้", c:"#c89b6d", cup:"#ffffff", foam:1},
+  {id:"thaitea", name:"ชาไทย", c:"#ff9f43", cup:"#e8f4ff", ice:1},
+  {id:"matcha", name:"มัทฉะลาเต้", c:"#7cc26b", cup:"#e8f4ff", ice:1},
+  {id:"cocoa", name:"โกโก้", c:"#7a4a2b", cup:"#ff4f9a", foam:1},
+  {id:"pumpkin", name:"พัมป์กินสไปซ์ลาเต้", c:"#ff8f1f", cup:"#2a1f3d", foam:1, fest:"halloween"},
+  {id:"potion", name:"น้ำยาแม่มด (โซดาเขียว)", c:"#8dff5a", cup:"#e8f4ff", ice:1, fest:"halloween"},
+];
+const SNACKS = [
+  {id:"cookie", name:"คุกกี้ช็อกชิพ"}, {id:"donut", name:"โดนัทสตรอว์เบอร์รี"}, {id:"cake", name:"เค้กช็อกโกแลต"},
+  {id:"chips", name:"มันฝรั่งทอด"}, {id:"mango", name:"ข้าวเหนียวมะม่วง"}, {id:"candy", name:"ลูกอมฮาโลวีน", fest:"halloween"}, {id:"ghostcookie", name:"คุกกี้ผี", fest:"halloween"},
+];
+const drinkOf = id => DRINKS.find(d => d.id === id), snackOf = id => SNACKS.find(d => d.id === id);
+function drawDrink(g, d, x, y, sc){
+  sc = sc || 1; const P = (xx, yy, w, h, col) => { g.fillStyle = col; g.fillRect(x + xx*sc, y + yy*sc, w*sc, h*sc); };
+  if (d.ice) { P(0,0,5,7,d.cup); P(1,1,3,5,d.c); P(1,1,1,1,"#ffffff"); P(3,3,1,1,"#ffffff"); P(3,-2,1,3,"#ff4f9a"); }
+  else { P(0,1,5,6,d.cup); P(5,2,1,3,d.cup); P(1,1,3,1,d.c); if (d.foam) P(1,1,3,1,"#f4e3c8"); P(1,-1-(ANIM%2),1,1,"#c8d6ea"); P(3,-2+(ANIM%2),1,1,"#c8d6ea"); }
+}
+function drawSnack(g, id, x, y, sc){
+  sc = sc || 1; const P = (xx, yy, w, h, col) => { g.fillStyle = col; g.fillRect(x + xx*sc, y + yy*sc, w*sc, h*sc); };
+  switch (id) {
+    case "cookie": P(0,1,6,5,"#d9a066"); P(1,0,4,7,"#d9a066"); P(1,2,1,1,"#4a2a12"); P(4,3,1,1,"#4a2a12"); P(2,5,1,1,"#4a2a12"); break;
+    case "donut": P(0,1,7,5,"#e0a060"); P(0,1,7,3,"#ff6fae"); P(2,2,3,2,"#e0a060"); P(1,1,1,1,"#ffffff"); P(5,2,1,1,"#5ef0d2"); break;
+    case "cake": P(0,2,6,5,"#6b3a1e"); P(0,2,6,1,"#fff3e0"); P(0,4,6,1,"#ff9ccc"); P(2,0,1,2,"#ff4757"); break;
+    case "chips": P(0,0,5,7,"#ffd23f"); P(1,1,3,2,"#ff4757"); P(1,4,3,2,"#ffae1a"); break;
+    case "mango": P(0,4,7,3,"#ffffff"); P(0,2,7,3,"#ffc83d"); P(1,6,5,1,"#e8e0d0"); break;
+    case "candy": P(0,2,2,3,"#6c3fbf"); P(5,2,2,3,"#6c3fbf"); P(2,1,3,5,"#ff8f1f"); P(3,2,1,1,"#5a2a00"); break;
+    case "ghostcookie": P(1,0,5,6,"#fbf7f2"); P(0,2,7,4,"#fbf7f2"); P(0,6,2,1,"#fbf7f2"); P(3,6,2,1,"#fbf7f2"); P(2,2,1,1,"#1d2b3a"); P(4,2,1,1,"#1d2b3a"); break;
+  }
+}
+/* ---------- world ---------- */
+const T = 16, LX = 19 * T, LY = 9 * T;
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MAP = {canvas:null, ctx:null, off:null, octx:null, w:480, h:256, hT:16, slots:[], order:[], hits:[], solids:[], seats:[], spots:[],
+  hover:null, me:null, keys:new Set(), target:null, onArrive:null, remote:{}, chat:[], last:0, lastSent:"", near:null, dpad:null,
+  cats:{}, fx:[], banner:null};
 function palette(){
   const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
-  const o = {}; ["wall","wallTop","desk","deskTop","screen","wood","woodB","accent","accent2","panel","ink","danger","amber","chair","sofa","tile","tileLine","tileAlt","muted","leaf","rug","blue"].forEach(k => o[k] = v("--" + k));
+  const o = {}; ["wall","wallTop","desk","deskTop","screen","wood","woodB","accent","accent2","panel","ink","danger","amber","chair","sofa","tile","tileLine","tileAlt","muted","leaf","rug","blue","gold"].forEach(k => o[k] = v("--" + k));
   return o;
 }
-const hashLook = id => { let h = 0; for (const c of String(id || "guest")) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h) % LOOKS.length; };
+const hashLook = id => hashStr(id || "guest") % LOOKS.length;
 const myLook = () => { const r = myRoom(); return r ? (Number(r.avatar) || 0) : hashLook(S.myId); };
+const myEquip = () => ({});
 function sortedRooms(){ return [...S.rooms].sort((a,b) => (a.joinedAt||"").localeCompare(b.joinedAt||"") || a.id.localeCompare(b.id)); }
 const onlineIds = () => { const s = new Set(); Object.values(MAP.remote).forEach(r => r.by && s.add(r.by)); if (S.myId) s.add(S.myId); return s; };
+const MEET = {x:20*T + 8, y:4*T + 4};
+const SOFA = () => ({x:23*T, y:MAP.h - 5*T});
+const COFFEE = {x:24*T + 6, y:LY + 14};
+const SNACK = {x:24*T, y:LY + 26, w:4*T, h:14};
+const SNACK_STAND = {x:26*T, y:LY + 50};
+const BOARD = {x:6*T + 26, y:2*T + 12};
 
 function layoutMap(){
   const rooms = sortedRooms();
   const maxDesk = rooms.reduce((m, r) => Math.max(m, Number.isInteger(r.desk) ? r.desk : -1), -1);
   const cols = 4, rows = Math.max(2, Math.ceil((rooms.length + 1) / cols), Math.ceil((maxDesk + 1) / cols));
-  MAP.hT = Math.max(16, Math.ceil(3 + rows * 4.6 + 2));
+  MAP.hT = Math.max(18, Math.ceil(3 + rows * 4.6 + 2));
   MAP.h = MAP.hT * T;
   MAP.slots = [];
   for (let i = 0; i < rows * cols; i++) MAP.slots.push({x:(1 + (i % cols) * 4.25) * T, y:(3 + Math.floor(i / cols) * 4.6) * T});
@@ -770,40 +821,489 @@ function layoutMap(){
   rooms.forEach(r => { const d = Number.isInteger(r.desk) ? r.desk : -1; if (d >= 0 && d < order.length && !order[d]) order[d] = r; else rest.push(r); });
   rest.forEach(r => { const i = order.indexOf(null); if (i >= 0) order[i] = r; });
   MAP.order = order;
-  buildSolids();
-  if (!MAP.me) { MAP.me = {x:21*T, y:11*T, dir:"down", moving:false}; }
-  if (blocked(MAP.me.x, MAP.me.y)) unstick(MAP.me);
+  buildSolids(); buildSeats(); buildSpots();
+  if (!MAP.me) MAP.me = {x:21*T, y:11*T, dir:"down", moving:false, sit:null};
+  if (!MAP.me.sit && blocked(MAP.me.x, MAP.me.y)) unstick(MAP.me);
   sizeMap();
 }
 function buildSolids(){
-  const H = MAP.h, W = MAP.w, lx = 19*T, ly = 9*T, s = [];
-  MAP.slots.forEach(sl => s.push({x:sl.x + 4, y:sl.y + 6, w:56, h:22}));
-  const mx = 20*T + 8, my = 4*T + 4; s.push({x:mx, y:my - 4, w:6*T, h:2*T + 6});
-  s.push({x:lx, y:ly - 14, w:W - lx, h:18});               // partition + counter
-  s.push({x:lx - 3, y:ly - 14, w:4, h:36});                 // wall above doorway
-  s.push({x:lx - 3, y:ly + 52, w:4, h:H - ly - 52});        // wall below doorway
-  const sx = 23*T, sy = H - 5*T;
-  s.push({x:sx, y:sy - 4, w:5*T, h:14}, {x:sx + 5*T - 12, y:sy - 4, w:12, h:3*T + 4}, {x:sx + 14, y:sy + 22, w:2*T - 8, h:12});
-  s.push({x:20*T - 2, y:H - 2*T - 6, w:16, h:18});          // plant
+  const H = MAP.h, W = MAP.w, s = [];
+  MAP.slots.forEach(sl => s.push({x:sl.x + 7, y:sl.y + 6, w:50, h:22}));   // desks: narrow enough to walk between
+  s.push({x:MEET.x, y:MEET.y - 2, w:6*T, h:2*T + 2});
+  s.push({x:LX, y:LY - 14, w:W - LX, h:18});
+  s.push({x:LX - 3, y:LY - 14, w:4, h:36});
+  s.push({x:LX - 3, y:LY + 52, w:4, h:H - LY - 52});
+  const so = SOFA();
+  s.push({x:so.x, y:so.y - 4, w:5*T, h:14}, {x:so.x + 5*T - 12, y:so.y - 4, w:12, h:3*T + 4}, {x:so.x + 14, y:so.y + 22, w:2*T - 8, h:12});
+  s.push({x:20*T - 2, y:H - 2*T - 6, w:16, h:18});
+  s.push({x:SNACK.x, y:SNACK.y - 2, w:SNACK.w, h:SNACK.h + 2});
+  if (festival() === "halloween") s.push({x:20*T + 4, y:LY + 70, w:14, h:10});
   MAP.solids = s;
 }
+function buildSeats(){
+  const S2 = [];
+  MAP.slots.forEach((sl, i) => { const dx = sl.x + 4, dy = sl.y + 10; S2.push({id:"d" + i, kind:"desk", slot:i, x:dx + 28, y:dy + 37, dir:"up", exit:{x:dx + 28, y:dy + 50}}); });
+  for (let i = 0; i < 4; i++) {
+    S2.push({id:"mt" + i, kind:"meet", x:MEET.x + 13 + i*20, y:MEET.y + 1, dir:"down", exit:{x:MEET.x + 13 + i*20, y:MEET.y - 14}});
+    S2.push({id:"mb" + i, kind:"meet", x:MEET.x + 13 + i*20, y:MEET.y + 2*T + 12, dir:"up", exit:{x:MEET.x + 13 + i*20, y:MEET.y + 2*T + 24}});
+  }
+  const so = SOFA();
+  for (let i = 0; i < 4; i++) S2.push({id:"s" + i, kind:"sofa", x:so.x + 10 + i*16, y:so.y + 12, dir:"down", exit:{x:so.x + 6 + i*16, y:so.y + 20}});
+  MAP.seats = S2;
+}
+const seatById = id => MAP.seats.find(s => s.id === id);
 function blocked(x, y){
-  const fx = x - 6, fy = y - 5, fw = 12, fh = 5;
+  const fx = x - 4, fy = y - 4, fw = 8, fh = 4;
   if (fx < 3 || fx + fw > MAP.w - 3 || fy < 2*T + 2 || fy + fh > MAP.h - 3) return true;
   return MAP.solids.some(r => fx < r.x + r.w && fx + fw > r.x && fy < r.y + r.h && fy + fh > r.y);
 }
 function unstick(p){
-  for (let rad = 4; rad < 200; rad += 4) for (let a = 0; a < 16; a++) {
+  for (let rad = 3; rad < 220; rad += 3) for (let a = 0; a < 16; a++) {
     const x = p.x + Math.cos(a / 16 * Math.PI * 2) * rad, y = p.y + Math.sin(a / 16 * Math.PI * 2) * rad;
     if (!blocked(x, y)) { p.x = x; p.y = y; return; }
   }
 }
+
+/* ---------- cats ---------- */
+const CATS = [
+  {id:"lek",    name:"ตัวเล็ก", fat:1.35, coat:"orangewhite", desc:"ส้มขาว ส้มเยอะ อ้วนกลม"},
+  {id:"somsom", name:"ส้มๆ",    fat:1.8,  coat:"orange",      desc:"ส้มทั้งตัว อ้วนมากๆๆ ชอบนอน"},
+  {id:"bang",   name:"บังเอิญ", fat:1.1,  coat:"whiteorange", desc:"ขาวแต้มส้ม ขี้เล่น"},
+  {id:"khao",   name:"ขาวๆ",    fat:1.5,  coat:"whitelittle", desc:"ขาวแต้มส้มนิดเดียว อ้วนกว่า"},
+  {id:"jung",   name:"จึ๋ง",    fat:1.0,  coat:"tortie",      desc:"สีเปรอะ ดุ ระวังโดนฟ่อ", grumpy:true},
+  {id:"joy",    name:"จ๋อย",    fat:1.0,  coat:"tabby",       desc:"ลายสลิดเทา เรียบร้อย", polite:true},
+];
+const catById = id => CATS.find(c => c.id === id);
+function coatColor(cat, x, y, w, h, part){
+  const O = "#f39a3d", OD = "#d9771a", W = "#fbf7f2", G = "#9aa0aa", GD = "#5d636e", B = "#2a2a2f", BR = "#8a5a33";
+  const n = hashStr(cat.id + x + ":" + y) % 7;
+  switch (cat.coat) {
+    case "orange": return (part === "body" && x % 3 === 0) ? OD : O;
+    case "orangewhite": return (part === "body" && y > h * .55) || part === "paw" || part === "muzzle" ? W : (x % 3 === 0 && part === "body" ? OD : O);
+    case "whiteorange": return (part === "tail" || (part === "head" && y < 3) || (part === "body" && ((x > w*.25 && x < w*.6 && y < h*.6) || x > w*.82))) ? O : W;
+    case "whitelittle": return ((part === "head" && y < 2 && x < 4) || (part === "tail" && y < 2)) ? O : W;
+    case "tortie": return part === "paw" ? B : [B, O, B, BR, B, O, BR][n];
+    case "tabby": return part === "paw" || (part === "body" && y > h * .7) ? "#c9ccd2" : ((x + (part === "head" ? 1 : 0)) % 3 === 0 ? GD : G);
+  }
+  return O;
+}
+/* draw a cat with its feet centered at (cx, cy); pose walk | sit | sleep */
+function drawCat(g, cat, cx, cy, pose, face, t){
+  const fat = cat.fat;
+  const bw = Math.round(pose === "sleep" ? 10 + fat * 4 : pose === "sit" ? 6 + fat * 3 : 10 + fat * 3);
+  const bh = Math.round(pose === "sleep" ? 4 + fat * 1.6 : pose === "sit" ? 6 + fat * 2 : 4 + fat * 2);
+  const flip = face === "left";
+  const P = (x, y, c) => { g.fillStyle = c; g.fillRect(flip ? Math.round(cx) - x - 1 : Math.round(cx) + x, Math.round(cy) + y, 1, 1); };
+  const bx = -Math.floor(bw / 2), by = -bh - (pose === "walk" ? 2 : 0);
+  // shadow
+  g.fillStyle = "rgba(31,42,68,.18)"; g.fillRect(Math.round(cx) - Math.ceil(bw/2) - 1, Math.round(cy) - 1, bw + 2, 2);
+  // tail
+  const wag = Math.floor(t / 300) % 2;
+  if (pose === "sleep") { for (let i = 0; i < 5; i++) P(bx - 1 + i, -1, coatColor(cat, i, 0, 5, 1, "tail")); }
+  else for (let i = 0; i < 5; i++) P(bx - 1 - (i > 2 ? wag : 0), by - i + 2, coatColor(cat, 0, i, 1, 5, "tail"));
+  // body
+  for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+    if ((y === 0 || y === bh - 1) && (x === 0 || x === bw - 1)) continue;
+    P(bx + x, by + y, coatColor(cat, x, y, bw, bh, "body"));
+  }
+  // legs
+  if (pose === "walk") {
+    const st = Math.floor(t / 160) % 2;
+    [[1, st], [3, 1 - st], [bw - 4, st], [bw - 2, 1 - st]].forEach(([lx, up]) => { P(bx + lx, by + bh, coatColor(cat, 0, 0, 1, 1, "paw")); if (!up) P(bx + lx, by + bh + 1, coatColor(cat, 0, 0, 1, 1, "paw")); });
+  } else if (pose === "sit") { P(bx + bw - 3, -1, coatColor(cat,0,0,1,1,"paw")); P(bx + bw - 2, -1, coatColor(cat,0,0,1,1,"paw")); }
+  // head
+  const hx = bx + bw - (pose === "sit" ? 4 : 3), hy = by - (pose === "sleep" ? 1 : 4);
+  for (let y = 0; y < 5; y++) for (let x = 0; x < 6; x++) { if ((y === 0 && (x === 0 || x === 5)) || (y === 4 && (x === 0 || x === 5))) continue; P(hx + x, hy + y, coatColor(cat, x, y, 6, 5, y > 2 && x > 1 && x < 5 ? "muzzle" : "head")); }
+  P(hx, hy - 1, coatColor(cat, 0, 0, 6, 5, "head")); P(hx + 5, hy - 1, coatColor(cat, 5, 0, 6, 5, "head")); // ears
+  P(hx + 1, hy - 1, "#ff9ccc");
+  if (pose === "sleep") { P(hx + 2, hy + 2, "#1d2b3a"); P(hx + 4, hy + 2, "#1d2b3a"); }
+  else { P(hx + 2, hy + 2, cat.grumpy ? "#d22" : "#1d2b3a"); P(hx + 4, hy + 2, cat.grumpy ? "#d22" : "#1d2b3a"); if (cat.grumpy) { P(hx + 2, hy + 1, "#1d2b3a"); P(hx + 4, hy + 1, "#1d2b3a"); } }
+  P(hx + 3, hy + 3, "#ff6fae");
+  if (cat.polite && pose === "sit") { P(hx + 1, hy + 5, "#ff4f9a"); P(hx + 2, hy + 5, "#ff4f9a"); P(hx + 3, hy + 5, "#ff4f9a"); }
+}
+function buildSpots(){
+  const H = MAP.h, so = SOFA(), sp = [];
+  MAP.slots.forEach((sl, i) => { sp.push({x:sl.x + 4 + 62, y:sl.y + 10 + 34}); if (MAP.order[i]) sp.push({x:sl.x + 4 + 50, y:sl.y + 10 + 14, desk:i}); });
+  sp.push({x:18*T, y:4*T}, {x:18*T + 6, y:8*T}, {x:21*T, y:7.6*T}, {x:28*T, y:3.4*T}, {x:28*T, y:7.6*T});
+  sp.push({x:21*T, y:LY + 26}, {x:SNACK.x + 52, y:SNACK.y + 6}, {x:27*T, y:LY + 46}, {x:28.5*T, y:LY + 14}, {x:22*T, y:H - 12}, {x:so.x + 24, y:so.y + 8}, {x:so.x + 50, y:so.y + 8}, {x:so.x + 20, y:so.y + 46}, {x:so.x - 20, y:so.y + 30});
+  MAP.spots = sp;
+}
+const zoneOf = p => (p.x >= LX - 2 && p.y >= LY) ? "L" : "W";
+const DOOR = {x:LX - 1, y:LY + 37};
+function lerpPath(pts, f){
+  let total = 0; const seg = [];
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y); seg.push(d); total += d; }
+  let want = f * total;
+  for (let i = 0; i < seg.length; i++) {
+    if (want <= seg[i] || i === seg.length - 1) { const k = seg[i] ? Math.min(1, want / seg[i]) : 1; return {x:pts[i].x + (pts[i+1].x - pts[i].x) * k, y:pts[i].y + (pts[i+1].y - pts[i].y) * k, face:pts[i+1].x < pts[i].x ? "left" : "right"}; }
+    want -= seg[i];
+  }
+  return {x:pts[pts.length-1].x, y:pts[pts.length-1].y, face:"right"};
+}
+function laziestDesk(){
+  let best = null, bn = 1e9;
+  MAP.order.forEach((r, i) => { if (!r) return; const n = roomStats(r).open; if (n < bn) { bn = n; best = i; } });
+  return best;
+}
+function catSpot(cat, n){
+  const sp = MAP.spots; if (!sp.length) return {x:24*T, y:12*T};
+  if (cat.id === "somsom" && n % 3 !== 0) { const d = laziestDesk(); if (d != null) { const s = sp.find(p => p.desk === d); if (s) return s; } }
+  return sp[hashStr(cat.id + ":" + n) % sp.length];
+}
+function catAuto(cat, now){
+  const seg = 16000 + (hashStr(cat.id) % 9000), off = hashStr(cat.id + "o") % seg;
+  const t = now + off, n = Math.floor(t / seg), f = (t % seg) / seg;
+  const A = catSpot(cat, n), B = catSpot(cat, n + 1);
+  const restPose = (cat.id === "somsom" || hashStr(cat.id + n) % 3 === 0) ? "sleep" : "sit";
+  const restShare = cat.id === "somsom" ? .8 : .55;
+  if (f < restShare || REDUCED) return {x:A.x, y:A.y, pose:restPose, face:hashStr(cat.id + n) % 2 ? "left" : "right"};
+  const pts = zoneOf(A) !== zoneOf(B) ? [A, DOOR, B] : [A, B];
+  const p = lerpPath(pts, (f - restShare) / (1 - restShare));
+  return {x:p.x, y:p.y, pose:"walk", face:p.face};
+}
+function catFollowers(){
+  const claims = {};
+  if (S.myCat) claims[S.myCat] = [{peer:S.myPeer || "~me", me:true}];
+  Object.entries(MAP.remote).forEach(([peer, r]) => { if (r.cat && catById(r.cat)) (claims[r.cat] = claims[r.cat] || []).push({peer, r}); });
+  const out = {};
+  Object.entries(claims).forEach(([id, list]) => { list.sort((a,b) => a.peer.localeCompare(b.peer)); out[id] = list[0]; });
+  return out;
+}
+function stepCats(dt, now){
+  const fol = catFollowers();
+  CATS.forEach(cat => {
+    let st = MAP.cats[cat.id];
+    const auto = catAuto(cat, now);
+    if (!st) st = MAP.cats[cat.id] = {x:auto.x, y:auto.y, pose:auto.pose, face:auto.face};
+    const f = fol[cat.id];
+    let tgt = null, restPose = "sit";
+    if (f) {
+      const ch = f.me ? MAP.me : f.r;
+      const seat = ch && ch.sit ? seatById(ch.sit) : null;
+      if (seat && seat.kind === "desk") { const sl = MAP.slots[seat.slot]; tgt = {x:sl.x + 4 + 48, y:sl.y + 10 + 14}; restPose = "sleep"; }
+      else if (seat) { tgt = {x:seat.x + 12, y:seat.y + 2}; restPose = "sit"; }
+      else if (ch) { const back = {up:[0, 12], down:[0, -2], left:[14, 0], right:[-14, 0]}[ch.dir || "down"] || [0, 0]; tgt = {x:ch.x + back[0], y:ch.y + back[1] + 4}; }
+    }
+    st.following = !!f;
+    if (tgt) {
+      const d = Math.hypot(tgt.x - st.x, tgt.y - st.y);
+      if (d > 3) { const s = Math.min(d, 95 * dt); st.x += (tgt.x - st.x) / d * s; st.y += (tgt.y - st.y) / d * s; st.pose = "walk"; st.face = tgt.x < st.x ? "left" : "right"; }
+      else st.pose = restPose;
+    } else {
+      const d = Math.hypot(auto.x - st.x, auto.y - st.y);
+      if (d > 4) { const s = Math.min(d, 90 * dt); st.x += (auto.x - st.x) / d * s; st.y += (auto.y - st.y) / d * s; st.pose = "walk"; st.face = auto.x < st.x ? "left" : "right"; }
+      else { st.x = auto.x; st.y = auto.y; st.pose = auto.pose; st.face = auto.face; }
+    }
+    if (cat.grumpy && MAP.me && !f) {
+      const dm = Math.hypot(MAP.me.x - st.x, MAP.me.y - st.y);
+      if (dm < 22 && (!st.hissAt || now - st.hissAt > 6000)) st.hissAt = now;
+    }
+  });
+}
+function callCat(id){
+  const cat = catById(id); if (!cat) return;
+  if (S.myCat === id) { S.myCat = null; toast(`ปล่อย${cat.name}ไปเดินเล่นแล้ว`); sendPresence(true); return; }
+  const fol = catFollowers()[id];
+  if (fol && !fol.me) { toast(`${cat.name}กำลังเดินตามคนอื่นอยู่`); return; }
+  if (cat.grumpy && Math.random() < .5) { const st = MAP.cats[id]; if (st) st.hissAt = Date.now(); toast("จึ๋งไม่มา แถมขู่ฟ่อใส่!"); return; }
+  S.myCat = id; sendPresence(true);
+  toast(cat.polite ? "จ๋อยเดินมานั่งข้างๆ อย่างเรียบร้อย" : `${cat.name}เดินตามมาแล้ว`);
+}
+
+/* ---------- festival + time of day ---------- */
+function festival(){
+  const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+  if (m === 10 && day >= 15) return "halloween";
+  if (m === 11 && day >= 18 && day <= 28) return "loykrathong";
+  if (m === 12 && day >= 10) return "christmas";
+  if (m === 1 && day <= 7) return "newyear";
+  if (m === 4 && day >= 10 && day <= 17) return "songkran";
+  return null;
+}
+const FEST_NAME = {halloween:"ฮาโลวีน", loykrathong:"ลอยกระทง", christmas:"คริสต์มาส", newyear:"ปีใหม่", songkran:"สงกรานต์"};
+function dayPhase(){ const d = new Date(), h = d.getHours() + d.getMinutes() / 60; return h >= 6 && h < 9 ? "morning" : h >= 9 && h < 16.5 ? "day" : h >= 16.5 && h < 18.75 ? "evening" : "night"; }
+function plant(g, P, x, y){ R_(g, P.desk, x+2, y+9, 8, 6); R_(g, P.leaf, x, y, 12, 9); R_(g, P.leaf, x+3, y-3, 6, 4); R_(g, P.accent2, x+2, y+2, 3, 3); }
+function pumpkin(g, x, y, glow){ R_(g,"#ff8f1f",x,y+2,12,8); R_(g,"#e5700a",x+3,y+2,1,8); R_(g,"#e5700a",x+8,y+2,1,8); R_(g,"#2ecc71",x+5,y,2,3); const e = glow ? "#ffe066" : "#5a2a00"; R_(g,e,x+2,y+4,2,2); R_(g,e,x+8,y+4,2,2); R_(g,e,x+3,y+7,6,1); }
+
+function web(g, x, y, s, fx, fy){
+  g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = .6;
+  for (let i = 0; i <= 3; i++) { const a = i / 3 * Math.PI / 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + fx * Math.cos(a) * s, y + fy * Math.sin(a) * s); g.stroke(); }
+  for (let r = s / 3; r <= s; r += s / 3) { g.beginPath(); for (let i = 0; i <= 3; i++) { const a = i / 3 * Math.PI / 2, px2 = x + fx * Math.cos(a) * r, py2 = y + fy * Math.sin(a) * r; i ? g.lineTo(px2, py2) : g.moveTo(px2, py2); } g.stroke(); }
+}
+function ghostPos(i, now){
+  const t = now / 1000 + i * 37;
+  return {x:40 + ((Math.sin(t / 9 + i) + 1) / 2) * (MAP.w - 80), y:3*T + 10 + ((Math.sin(t / 6.5 + i * 2) + 1) / 2) * (MAP.h - 6*T)};
+}
+function drawHalloween(g, P, now, phase){
+  const H = MAP.h, W = MAP.w, glow = true;
+  // pumpkins around the floor
+  [[0.3*T, H - 16],[17.6*T, 2.3*T],[29*T - 4, H - 18],[18.1*T, H - 16],[0.3*T, 8*T],[26.3*T, LY + 66],[21.2*T, LY - 18]].forEach(([x, y]) => pumpkin(g, x, y, glow));
+  // cobwebs in corners and on the partition
+  web(g, 2, 2*T + 1, 22, 1, 1); web(g, LX - 4, 2*T + 1, 18, -1, 1); web(g, W - 2, 2*T + 1, 22, -1, 1); web(g, LX, LY + 4, 16, 1, 1);
+  web(g, 2, H - 2, 18, 1, -1); web(g, W - 2, H - 2, 18, -1, -1);
+  // dangling spiders
+  [[3.2*T, 0], [11*T, 1], [27.6*T, 2]].forEach(([x, k]) => { const dy = 8 + Math.sin(now / 700 + k) * 5; R_(g, "rgba(255,255,255,.6)", x, 2*T, 1, dy); R_(g, "#1d1d26", x - 2, 2*T + dy, 5, 4); R_(g, "#1d1d26", x - 3, 2*T + dy + 1, 7, 1); R_(g, "#ff4757", x - 1, 2*T + dy + 1, 1, 1); R_(g, "#ff4757", x + 1, 2*T + dy + 1, 1, 1); });
+  // flying bats
+  for (let i = 0; i < 4; i++) { const t = (now / 1000 * (18 + i * 5) + i * 140) % (W + 40) - 20, y = 6 + i * 5 + Math.sin(now / 300 + i) * 3, f = Math.floor(now / 140 + i) % 2;
+    R_(g, "#1d1d26", t, y, 4, 2); R_(g, "#1d1d26", t - 3, y - (f ? 2 : -1), 3, 2); R_(g, "#1d1d26", t + 4, y - (f ? 2 : -1), 3, 2); R_(g, "#ffd23f", t + 1, y, 1, 1); }
+  // cauldron in the lounge
+  const cx = 20*T + 4, cy = LY + 70;
+  R_(g, "#ff8f1f", cx + 2, cy + 9, 10, 3); R_(g, "#ffd23f", cx + 4, cy + 10, 6, 2);
+  R_(g, "#2a2a36", cx, cy, 14, 9); R_(g, "#3a3a4a", cx - 1, cy, 16, 2); R_(g, "#8dff5a", cx + 1, cy, 12, 2);
+  for (let i = 0; i < 3; i++) { const b = (now / 400 + i * 1.3) % 3; R_(g, "#b6ff8f", cx + 3 + i * 4, cy - 1 - b * 3, 2, 2); }
+  // candles on the meeting table
+  [MEET.x + 8, MEET.x + 46, MEET.x + 84].forEach((x, i) => { R_(g, "#fbf7f2", x, MEET.y + 10, 3, 6); R_(g, ANIM % 3 === i % 3 ? "#ffe066" : "#ff8f1f", x, MEET.y + 7, 3, 3); });
+  // witch hat on the sign + string lights
+  R_(g, "#2a1f3d", 27.4*T, 0, 14, 3); R_(g, "#2a1f3d", 27.4*T + 4, -6, 6, 6); R_(g, "#ff8f1f", 27.4*T + 4, -1, 6, 1);
+  for (let x = 6, i = 0; x < W; x += 14, i++) { const on = (Math.floor(now / 500) + i) % 2; R_(g, on ? (i % 2 ? "#ff8f1f" : "#a35cff") : "#3a2a5c", x, 2*T + 5, 3, 3); }
+  // ghosts drifting around the office
+  for (let i = 0; i < 2; i++) {
+    const p = ghostPos(i, now), bob = Math.sin(now / 400 + i) * 2;
+    g.globalAlpha = .78;
+    R_(g, "#fbf7f2", p.x - 6, p.y - 14 + bob, 12, 12); R_(g, "#fbf7f2", p.x - 7, p.y - 10 + bob, 14, 8);
+    for (let k = 0; k < 4; k++) R_(g, "#fbf7f2", p.x - 7 + k * 4, p.y - 2 + bob + (k % 2), 2, 2);
+    R_(g, "#1d2b3a", p.x - 3, p.y - 10 + bob, 2, 3); R_(g, "#1d2b3a", p.x + 2, p.y - 10 + bob, 2, 3); R_(g, "#1d2b3a", p.x - 1, p.y - 6 + bob, 3, 2);
+    g.globalAlpha = 1;
+  }
+  // low purple fog
+  for (let i = 0; i < 10; i++) { const fx = ((now / 60 + i * 61) % (W + 60)) - 30; g.fillStyle = "rgba(163,92,255,.10)"; g.beginPath(); g.ellipse(fx, H - 6 - (i % 3) * 4, 26, 6, 0, 0, Math.PI * 2); g.fill(); }
+}
+function drawHeld(g, th, sx, sy){
+  if (!th.hold) return;
+  const left = th.dir === "left", up = th.dir === "up";
+  const hx = up ? sx + 19 : left ? sx - 4 : sx + 17, hy = sy + 13;
+  const d = drinkOf(th.hold);
+  if (d) drawDrink(g, d, hx, hy, 1); else drawSnack(g, th.hold, hx, hy + 2, 1);
+}
+function drawScene(now){
+  const g = MAP.octx, P = palette(), W = MAP.w, H = MAP.h, fest = festival(), phase = dayPhase();
+  g.imageSmoothingEnabled = false;
+  for (let y = 0; y < H; y += T) for (let x = 0; x < W; x += T) { g.fillStyle = ((x + y) / T) % 2 ? P.tileAlt : P.tile; g.fillRect(x, y, T, T); }
+  g.fillStyle = P.tileLine; for (let x = 0; x < W; x += T) g.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += T) g.fillRect(0, y, W, 1);
+  // lounge
+  R_(g, P.wood, LX, LY, W - LX, H - LY);
+  g.fillStyle = P.woodB; for (let y = LY; y < H; y += 6) { g.fillRect(LX, y, W - LX, 1); for (let x = LX + ((y/6) % 2 ? 10 : 0); x < W; x += 20) g.fillRect(x, y, 1, 6); }
+  R_(g, P.wallTop, LX, LY - 6, W - LX, 8); R_(g, P.wall, LX, LY + 2, W - LX, 2);
+  R_(g, P.wall, LX - 3, LY - 6, 3, 28); R_(g, P.wall, LX - 3, LY + 52, 3, H - LY - 52);
+  R_(g, P.amber, LX - 4, LY + 20, 5, 2); R_(g, P.amber, LX - 4, LY + 52, 5, 2);
+  // kitchen + coffee machine
+  R_(g, P.panel, 22*T, LY - 10, 4*T, 12); R_(g, P.accent2, 22*T, LY - 10, 4*T, 2);
+  R_(g, P.blue, 22*T + 8, LY - 16, 10, 10); R_(g, P.screen, 22*T + 10, LY - 22, 6, 7);
+  // espresso machine
+  R_(g, "#c9d3e6", 23.6*T, LY - 24, 22, 18); R_(g, P.wall, 23.6*T, LY - 24, 22, 3); R_(g, "#36407a", 23.6*T + 6, LY - 18, 10, 3);
+  R_(g, "#ff4757", 23.6*T + 17, LY - 19, 2, 2); R_(g, "#2ecc71", 23.6*T + 17, LY - 15, 2, 2);
+  R_(g, "#1d2b3a", 23.6*T + 8, LY - 14, 6, 2);
+  const brewingAny = (S.brew && now < S.brew.until) || Object.values(MAP.remote).some(r => r.brewing);
+  if (brewingAny) { R_(g, "#7a4a2b", 23.6*T + 10, LY - 12, 1, 2 + (ANIM % 3)); for (let i = 0; i < 3; i++) R_(g, "#e8eef7", 23.6*T + 6 + i*4, LY - 30 - ((ANIM + i*2) % 5), 1, 3); }
+  R_(g, "#ffffff", 23.6*T + 8, LY - 9, 6, 5);
+  R_(g, P.accent, 27*T, LY - 22, 18, 26); R_(g, P.screen, 27*T + 3, LY - 19, 12, 9); R_(g, P.amber, 27*T + 3, LY - 8, 12, 2);
+  plant(g, P, 20*T + 2, LY - 12); plant(g, P, 29*T - 2, LY - 12);
+  // sofa
+  const so = SOFA();
+  R_(g, P.rug, so.x - 10, so.y + 14, 4*T + 6, 3*T - 4);
+  R_(g, P.sofa, so.x, so.y, 5*T, 12); R_(g, P.sofa, so.x + 5*T - 12, so.y, 12, 3*T);
+  R_(g, P.accent, so.x + 2, so.y + 2, 5*T - 16, 8); R_(g, P.accent, so.x + 5*T - 10, so.y + 12, 8, 3*T - 14);
+  R_(g, P.panel, so.x + 14, so.y + 24, 2*T - 8, 12); R_(g, P.amber, so.x + 20, so.y + 27, 5, 5);
+  plant(g, P, 20*T, H - 2*T);
+  // snack corner
+  R_(g, "#7a4a2b", SNACK.x + 2, SNACK.y + SNACK.h, 3, 4); R_(g, "#7a4a2b", SNACK.x + SNACK.w - 5, SNACK.y + SNACK.h, 3, 4);
+  R_(g, fest === "halloween" ? "#6c3fbf" : "#ff4f9a", SNACK.x, SNACK.y, SNACK.w, SNACK.h);
+  for (let x = 0; x < SNACK.w; x += 6) R_(g, fest === "halloween" ? "#ff8f1f" : "#ffffff", SNACK.x + x, SNACK.y, 3, SNACK.h);
+  R_(g, "#ffffff", SNACK.x, SNACK.y + SNACK.h - 2, SNACK.w, 2);
+  ["cookie","donut","cake","chips","mango"].forEach((id, i) => drawSnack(g, id, SNACK.x + 3 + i * 12, SNACK.y + 3, 1));
+  if (fest === "halloween") { R_(g,"#2a1f3d",SNACK.x + 54, SNACK.y - 6, 10, 7); R_(g,"#ff8f1f",SNACK.x + 55, SNACK.y - 8, 3, 3); R_(g,"#6c3fbf",SNACK.x + 59, SNACK.y - 8, 3, 3); R_(g,"#2ecc71",SNACK.x + 57, SNACK.y - 9, 2, 2); }
+  // wall
+  R_(g, P.wallTop, 0, 0, W, 2*T); R_(g, P.wall, 0, 2*T - 3, W, 3);
+  [[1.2, P.danger], [2.3, P.amber], [3.4, P.accent2]].forEach(([t, c]) => { R_(g, P.wall, t*T, 6, 14, 14); R_(g, c, t*T + 2, 8, 10, 10); R_(g, P.panel, t*T + 4, 10, 4, 4); });
+  // whiteboard with sticky notes
+  R_(g, P.wall, 6*T, 4, 52, 22); R_(g, P.panel, 6*T + 2, 6, 48, 18);
+  R_(g, P.accent, 6*T + 6, 10, 20, 2); R_(g, P.blue, 6*T + 6, 15, 30, 2); R_(g, P.accent2, 6*T + 6, 20, 14, 2);
+  if (S.board && S.board.text) R_(g, P.danger, 6*T + 46, 6, 4, 4);
+  // window (sky by time of day)
+  const sky = {morning:"#ffd9a8", day:"#8fd3ff", evening:"#ff9f6b", night:"#1d2453"}[phase];
+  R_(g, P.wall, 9.7*T, 4, 32, 22); R_(g, sky, 9.7*T + 2, 6, 28, 18); R_(g, P.wall, 9.7*T + 15, 6, 2, 18); R_(g, P.wall, 9.7*T + 2, 14, 28, 2);
+  if (phase === "night") { R_(g, "#fff3b0", 9.7*T + 22, 8, 4, 4); R_(g, "#ffffff", 9.7*T + 6, 9, 1, 1); R_(g, "#ffffff", 9.7*T + 10, 19, 1, 1); R_(g, "#ffffff", 9.7*T + 24, 20, 1, 1); }
+  else if (phase === "day") { R_(g, "#ffffff", 9.7*T + 5, 9, 7, 3); R_(g, "#ffffff", 9.7*T + 20, 18, 6, 2); }
+  else R_(g, "#ffe066", 9.7*T + 6, 17, 5, 5);
+  R_(g, P.desk, 12.2*T, 3, 30, 27); R_(g, P.deskTop, 12.2*T + 2, 12, 26, 1); R_(g, P.deskTop, 12.2*T + 2, 21, 26, 1);
+  [[2,P.danger],[6,P.accent2],[10,P.amber],[15,P.chair],[20,P.accent]].forEach(([o,c]) => { R_(g, c, 12.2*T + 2 + o, 5, 3, 7); R_(g, c, 12.2*T + 4 + o, 14, 3, 7); });
+  plant(g, P, 15*T, 14);
+  // leaderboard board
+  R_(g, P.wall, 16.6*T, 3, 4*T - 4, 26); R_(g, "#1f2a44", 16.6*T + 2, 5, 4*T - 8, 22);
+  // sign
+  R_(g, P.wall, 21*T, 6, 7*T, 20); R_(g, P.accent, 21*T + 2, 8, 7*T - 4, 16);
+  // meeting table
+  R_(g, P.chair, 0, 0, 0, 0);
+  for (let i = 0; i < 4; i++) { R_(g, P.chair, MEET.x + 8 + i*20, MEET.y - 9, 10, 8); R_(g, P.chair, MEET.x + 8 + i*20, MEET.y + 2*T + 2, 10, 8); }
+  R_(g, P.desk, MEET.x, MEET.y, 6*T, 2*T); R_(g, P.deskTop, MEET.x + 2, MEET.y + 2, 6*T - 4, 2*T - 6);
+  R_(g, P.panel, MEET.x + 20, MEET.y + 8, 10, 7); R_(g, P.panel, MEET.x + 54, MEET.y + 10, 9, 6);
+  // festival decor
+  if (fest) {
+    const cols = {halloween:["#ff8f1f","#6c3fbf"], loykrathong:["#ffc83d","#ff4f9a"], christmas:["#ff4757","#2ecc71"], newyear:["#ffc83d","#ff4757"], songkran:["#4c9dff","#ffffff"]}[fest];
+    for (let x = 0, i = 0; x < W; x += 10, i++) { g.fillStyle = cols[i % 2]; g.beginPath(); g.moveTo(x, 2*T - 1); g.lineTo(x + 10, 2*T - 1); g.lineTo(x + 5, 2*T + 6); g.closePath(); g.fill(); }
+    if (fest === "halloween") drawHalloween(g, P, now, phase);
+    if (fest === "loykrathong") { R_(g,"#2ecc71",so.x + 16, so.y + 30, 14, 6); R_(g,"#ff4f9a",so.x + 20, so.y + 27, 6, 4); R_(g,"#ffe066",so.x + 22, so.y + 23 - (ANIM%2), 2, 3); [[5.3,6],[11.2,8],[29.2,5]].forEach(([lx, ly]) => { R_(g,"#ffae1a",lx*T,ly,8,10); R_(g,"#ffe066",lx*T+2,ly+2,4,6); }); }
+    if (fest === "christmas") ITEM.xmas(g, P, 28.6*T, H - 3.4*T);
+    if (fest === "songkran") { R_(g,"#c98d5e",so.x + 18, so.y + 28, 12, 6); R_(g,"#9ce8ff",so.x + 19, so.y + 28, 10, 2); }
+  }
+  // desks
+  const online = onlineIds(), stars = starIds();
+  MAP.hits = [];
+  MAP.slots.forEach((s, i) => {
+    const r = MAP.order[i], id = r ? r.id : "__free:" + i;
+    const dx = s.x + 4, dy = s.y + 10;
+    const hot = MAP.hover === id || (MAP.near && MAP.near.deskId === id);
+    if (hot || S.openRoom === id) { g.fillStyle = P.accent; g.globalAlpha = .18; g.fillRect(s.x + 2, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
+    if (r && r.id === S.myId) { g.fillStyle = P.accent2; g.globalAlpha = .2; g.fillRect(s.x + 2, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
+    const busy = !!(r && roomStats(r).open);
+    const draftHere = S.editing && S.setupDesk === i && S.setupDeco;
+    const deco = r ? decoOf(r) : draftHere ? S.setupDeco : {color:6, chair:4, L:"none", R:"none", F:"none"};
+    if (!r && !draftHere) g.globalAlpha = .55;
+    drawDesk(g, P, dx, dy, {deco, busy, anim:ANIM, mons:r ? Math.min(3, Math.max(1, (r.clients || []).length)) : 1});
+    g.globalAlpha = 1;
+    const someoneSits = (MAP.me && MAP.me.sit === "d" + i) || Object.values(MAP.remote).some(x => x.sit === "d" + i);
+    if (r && busy && !online.has(r.id) && !someoneSits) { px(g, BACK, Number(r.avatar)||0, dx + 18, dy + 13, 0); drawGear(g, r.equip, dx + 18, dy + 13, "up"); if (stars.has(r.id)) drawCrown(g, dx + 18, dy + 13); }
+    MAP.hits.push({id, desk:true, slot:i, x:s.x + 2, y:s.y, w:4*T - 6, h:4*T});
+  });
+  MAP.hits.push({id:"__board", x:6*T - 2, y:2, w:56, h:2*T});
+  // characters + cats, y-sorted
+  const things = [];
+  if (MAP.me && S.view === "office") things.push({kind:"ch", x:MAP.me.x, y:MAP.me.y, dir:MAP.me.dir, moving:MAP.me.moving, look:myLook(), equip:myEquip(), me:true, uidv:S.myId, hold:S.hold && Date.now() < S.hold.until ? S.hold.id : null});
+  Object.values(MAP.remote).forEach(r => things.push({kind:"ch", x:r.x, y:r.y, dir:r.dir, moving:r.moving, look:r.look, equip:r.by && roomOf(r.by) ? roomOf(r.by).equip : null, uidv:r.by, hold:r.hold}));
+  CATS.forEach(c => { const st = MAP.cats[c.id]; if (st) things.push({kind:"cat", cat:c, st, x:st.x, y:st.y}); });
+  things.sort((a,b) => a.y - b.y).forEach(th => {
+    if (th.kind === "cat") { drawCat(g, th.cat, th.st.x, th.st.y, th.st.pose, th.st.face, now + hashStr(th.cat.id) % 997); MAP.hits.push({id:"cat:" + th.cat.id, x:th.x - 10, y:th.y - 14, w:20, h:16}); return; }
+    const step = th.moving ? (Math.floor(now / 150) % 2) + 1 : 0;
+    g.fillStyle = th.me ? P.accent : P.wall; g.globalAlpha = th.me ? .55 : .25; g.fillRect(Math.round(th.x) - 8, Math.round(th.y) - 2, 16, 4); g.globalAlpha = 1;
+    const pat = th.dir === "up" ? BACK : (th.dir === "left" || th.dir === "right") ? SIDE : SPRITE;
+    const sx = Math.round(th.x) - 10, sy = Math.round(th.y) - 24;
+    px(g, pat, th.look, sx, sy, step, th.dir === "left");
+    drawGear(g, th.equip, sx, sy, th.dir, th.dir === "left");
+    if (th.uidv && stars.has(th.uidv)) drawCrown(g, sx, sy - (th.equip && GEAR[th.equip.hat] ? 4 : 0));
+    drawHeld(g, th, sx, sy);
+  });
+  // lighting
+  const tint = {morning:"rgba(255,190,120,.10)", day:fest === "halloween" ? "rgba(110,50,160,.07)" : null, evening:"rgba(255,120,60,.16)", night:"rgba(16,22,70,.42)"}[phase];
+  if (tint) { g.fillStyle = tint; g.fillRect(0, 0, W, H); }
+  if (phase === "night" || phase === "evening") {
+    g.globalCompositeOperation = "lighter";
+    const glow = (x, y, r, a) => { const gr = g.createRadialGradient(x, y, 1, x, y, r); gr.addColorStop(0, `rgba(255,220,140,${a})`); gr.addColorStop(1, "rgba(255,220,140,0)"); g.fillStyle = gr; g.fillRect(x - r, y - r, r*2, r*2); };
+    MAP.slots.forEach((s, i) => { if (MAP.order[i]) glow(s.x + 32, s.y + 10, 26, phase === "night" ? .35 : .15); });
+    glow(24*T + 6, LY - 12, 30, .25); glow(MEET.x + 48, MEET.y + 16, 40, .18);
+    if (fest === "halloween") { [[0.3*T + 6, H - 12],[17.6*T + 6, 2.3*T + 5],[29*T + 2, H - 14],[18.1*T + 6, H - 12],[0.3*T + 6, 8*T + 5],[26.3*T + 6, LY + 70],[21.2*T + 6, LY - 14]].forEach(([x, y]) => glow(x, y, 18, .4)); glow(20*T + 11, LY + 72, 20, .3); }
+    g.globalCompositeOperation = "source-over";
+  }
+}
+
+/* ---------- overlay text ---------- */
+function bubble(g, P, x, y, text, tone, maxW){
+  g.font = "600 6.5px 'IBM Plex Sans Thai', sans-serif";
+  let t = text; const lim = maxW || 120;
+  while (g.measureText(t).width > lim && t.length > 2) t = t.slice(0, -2);
+  if (t !== text) t += "…";
+  const w = Math.ceil(g.measureText(t).width) + 8, h = 11;
+  const bx = Math.max(1, Math.min(MAP.w - w - 1, x - w/2)), by = y - h;
+  const edge = tone === "bad" ? P.danger : tone === "say" ? P.accent : tone === "focus" ? P.accent2 : tone === "hiss" ? "#d22" : P.wall;
+  g.fillStyle = edge; g.fillRect(bx - .7, by - .7, w + 1.4, h + 1.4);
+  g.fillStyle = tone === "bad" || tone === "focus" || tone === "hiss" ? edge : P.panel; g.fillRect(bx, by, w, h);
+  g.beginPath(); g.moveTo(x - 2.5, by + h); g.lineTo(x + 2.5, by + h); g.lineTo(x, by + h + 3); g.closePath(); g.fillStyle = edge; g.fill();
+  g.fillStyle = tone === "bad" || tone === "focus" || tone === "hiss" ? "#ffffff" : P.ink; g.textBaseline = "middle"; g.textAlign = "left";
+  g.fillText(t, bx + 4, by + h/2 + .3);
+}
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${pad(s % 60)}`; };
+function draw(){
+  if (!MAP.canvas) return;
+  const now = Date.now();
+  drawScene(now);
+  const c = MAP.ctx, P = palette(), k = MAP.k * MAP.dpr;
+  c.setTransform(1,0,0,1,0,0); c.imageSmoothingEnabled = false;
+  c.drawImage(MAP.off, 0, 0, MAP.canvas.width, MAP.canvas.height);
+  c.setTransform(k, 0, 0, k, 0, 0);
+  // sign
+  let co = "PIXEL HQ", fs = 9;
+  c.font = `700 ${fs}px 'Pixelify Sans','IBM Plex Sans Thai', monospace`;
+  while (c.measureText(co).width > 7*T - 10 && fs > 5) { fs -= .5; c.font = `700 ${fs}px 'Pixelify Sans','IBM Plex Sans Thai', monospace`; }
+  c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(co, 24.5*T, 16.5);
+  // leaderboard on the wall
+  const lb = weekBoard().filter(e => e.n > 0).slice(0, 3);
+  c.font = "700 4.6px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "left"; c.fillStyle = "#ffc83d";
+  c.fillText("ท็อปสัปดาห์นี้", 16.6*T + 4, 9);
+  c.font = "600 4.4px 'IBM Plex Sans Thai', sans-serif";
+  lb.forEach((e, i) => { c.fillStyle = "#ffffff"; let nm = e.id === S.myId ? "คุณ" : nameOf(e.id); if (nm.length > 8) nm = nm.slice(0, 7) + "…"; c.fillText(`${i+1}. ${nm} ${e.n}${e.onTime ? " ✓" : ""}`, 16.6*T + 4, 15 + i * 5); });
+  if (!lb.length) { c.fillStyle = "#cfe0f5"; c.fillText("ยังไม่มีใครปิดงาน", 16.6*T + 4, 16); }
+  c.font = "600 5.5px 'IBM Plex Sans Thai', sans-serif"; c.fillStyle = P.muted; c.textAlign = "center";
+  c.fillText("ห้องประชุม · โฟกัสด้วยกัน", 23.5*T, 2*T + 7);
+  c.fillText("เครื่องชงกาแฟ", 24*T + 7, LY + 9);
+  c.fillText(festival() === "halloween" ? "มุมขนม · ลูกอมฮาโลวีน" : "มุมขนม", SNACK.x + SNACK.w / 2, SNACK.y + SNACK.h + 9);
+  if (festival() === "halloween") for (let i = 0; i < 2; i++) { const p = ghostPos(i, now); if (Math.floor(now / 4000 + i) % 3 === 0) bubble(c, P, p.x, p.y - 18, "บู้ววว~", "", 50); }
+  const fest = festival(); c.textAlign = "right"; c.fillText(fest ? `มุมพักผ่อน · เทศกาล${FEST_NAME[fest]}` : "มุมพักผ่อน", MAP.w - 6, MAP.h - 7);
+  // desk labels + bubbles
+  MAP.slots.forEach((s, i) => {
+    const r = MAP.order[i], cx = s.x + 32;
+    if (r) {
+      const st = roomStats(r);
+      let label = r.roomName || nameOf(r.id); if (label.length > 16) label = label.slice(0, 15) + "…";
+      c.font = (r.id === S.myId ? "700 " : "600 ") + "6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
+      c.fillStyle = r.id === S.myId ? P.accent : P.ink; c.fillText(label, cx, s.y + 54);
+      const status = "";
+      const cnt = st.late ? `เลย ${st.late}!` : st.open ? `ค้าง ${st.open}` : "";
+      const text = status ? (cnt ? `${status} · ${cnt}` : status) : cnt ? (st.late ? `เลยกำหนด ${st.late}!` : st.today ? `วันนี้ ${st.today} · ค้าง ${st.open}` : `ค้าง ${st.open} งาน`) : "";
+      if (text) bubble(c, P, cx, s.y + 3, text, st.late ? "bad" : "", 96);
+    } else {
+      const canBook = S.myId && !S.readOnly;
+      c.font = "700 6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
+      c.fillStyle = canBook ? P.accent : P.muted;
+      c.fillText(!canBook ? "โต๊ะว่าง" : myRoom() ? "ย้ายมาโต๊ะนี้" : "+ จองโต๊ะนี้", cx, s.y + 54);
+    }
+  });
+  // cats: names when near / following, hiss
+  CATS.forEach(cat => {
+    const st = MAP.cats[cat.id]; if (!st) return;
+    const near = MAP.me && Math.hypot(MAP.me.x - st.x, MAP.me.y - st.y) < 46;
+    if (near || st.following || MAP.hover === "cat:" + cat.id) { c.font = "700 5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top"; c.fillStyle = cat.grumpy ? "#d22" : P.wall; c.fillText(cat.name, st.x, st.y + 1); }
+    if (st.pose === "sleep" && !REDUCED) { c.font = "700 5px 'Pixelify Sans', monospace"; c.fillStyle = P.blue; c.textAlign = "left"; c.fillText("z".repeat(1 + Math.floor(now / 600) % 3), st.x + 6, st.y - 14); }
+    if (st.hissAt && now - st.hissAt < 2200) bubble(c, P, st.x, st.y - 14, "ฟ่อ! แฟ่!!", "hiss", 60);
+  });
+  // characters overlays
+  const tag = (x, y, text, mine, sub) => {
+    c.font = "700 5.8px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+    const w = c.measureText(text).width + 9;
+    c.fillStyle = mine ? P.accent : "rgba(31,42,68,.8)"; c.fillRect(x - w/2, y - 4.5, w, 9);
+    c.fillStyle = "#3ee07a"; c.fillRect(x - w/2 + 2.5, y - 1, 2.2, 2.2);
+    c.fillStyle = "#ffffff"; c.fillText(text, x + 1.5, y + .3);
+    if (sub) { c.font = "600 4.6px 'IBM Plex Sans Thai', sans-serif"; c.fillStyle = mine ? P.accent : P.wall; c.fillText(sub, x, y - 8); }
+  };
+  const overlay = (x, y, uidv, mine, name, say, sayAt, emote, focus) => {
+    const r = uidv ? roomOf(uidv) : null;
+    const pg = uidv && uidv !== AI_ID && r ? progOf(uidv) : null, lv = pg ? pg.level : 1, streak = pg ? pg.streak : 0, title = "";
+    const head = y - 29 - (r && r.equip && GEAR[r.equip.hat] ? 4 : 0);
+    let label = r ? `Lv${lv} ${name}` : name; if (label.length > 18) label = label.slice(0, 17) + "…";
+    tag(x, head, label, mine, title ? `☕ ${title}` : "");
+    let top = head - (title ? 13 : 6);
+    if (streak >= 2) { c.font = "700 6px sans-serif"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(`🔥${streak}`, x + c.measureText(label).width / 2 + 4, head); }
+    if (focus && focus > now) { bubble(c, P, x, top, `ห้ามรบกวน ⏱ ${mmss(focus - now)}`, "focus", 120); top -= 13; }
+    if (say && now - sayAt < 7000) { bubble(c, P, x, top, say, "say", 140); top -= 13; }
+    if (emote && now - emote.at < 2600) { const f = (now - emote.at) / 2600; c.globalAlpha = 1 - f * f; c.font = "12px sans-serif"; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillText(emote.e, x, top - f * 14); c.globalAlpha = 1; }
+  };
+  if (S.brew && now < S.brew.until && MAP.me) { const f = 1 - (S.brew.until - now) / S.brew.ms, n = Math.round(f * 6); bubble(c, P, MAP.me.x, MAP.me.y - 46, `${S.brew.label} ${"▓".repeat(n)}${"░".repeat(6 - n)}`, "focus", 140); }
+  if (MAP.me && S.view === "office") overlay(MAP.me.x, MAP.me.y, S.myId, true, "คุณ", MAP.me.say, MAP.me.sayAt, MAP.me.emote, S.focus && S.focus.until);
+  Object.values(MAP.remote).forEach(r => overlay(r.x, r.y, r.by, false, r.by ? nameOf(r.by) : "ผู้มาเยือน", r.say, r.sayAt, r.emote, r.focus));
+  // confetti
+  MAP.fx = MAP.fx.filter(p => now - p.t0 < 1800);
+  MAP.fx.forEach(p => { const t = (now - p.t0) / 1000; c.fillStyle = p.c; c.fillRect(p.x + p.vx * t, p.y + p.vy * t + 60 * t * t, 2, 2); });
+}
+function confetti(x, y){
+  const cs = ["#ff4f9a","#ffc83d","#13c4ae","#4c7dff","#ff4757"];
+  for (let i = 0; i < 26; i++) MAP.fx.push({x, y:y - 20, vx:(Math.random() - .5) * 70, vy:-30 - Math.random() * 50, c:cs[i % cs.length], t0:Date.now()});
+}
+
+/* ---------- canvas sizing + input ---------- */
 function stageSize(){
   const st = $("#stage"), big = st && st.classList.contains("big");
   const cw = (MAP.canvas.parentElement.clientWidth || 480) - 8;
   let k = cw / MAP.w;
-  if (big) { const avail = innerHeight - ($("#chatbar")?.offsetHeight || 0) - (st.querySelector(".toolbar")?.offsetHeight || 0) - 44; k = Math.min(k, avail / MAP.h); }
-  return k;
+  if (big) { const avail = innerHeight - ($("#chatbar")?.offsetHeight || 0) - (st.querySelector(".toolbar")?.offsetHeight || 0) - 48; k = Math.min(k, avail / MAP.h); }
+  return Math.max(.5, k);
 }
 function sizeMap(){
   const c = MAP.canvas; if (!c) return;
@@ -823,15 +1323,55 @@ function initMap(c){
   c.addEventListener("pointerleave", () => { MAP.hover = null; });
   c.addEventListener("click", e => {
     const p = pos(e), h = hitAt(p);
+    if (h && h.id.startsWith("cat:")) { callCat(h.id.slice(4)); return; }
     if (h && h.desk) {
-      MAP.target = {x:h.desk.x, y:h.desk.y};
+      const seat = seatById("d" + h.slot);
+      walkTo(seat.exit, () => sitAt(seat));
       deskAction(h.id);
-    } else MAP.target = {x:p.x, y:p.y};
+      return;
+    }
+    const seat = MAP.seats.find(s => s.kind !== "desk" && Math.hypot(s.x - p.x, s.y - 8 - p.y) < 12);
+    if (seat) { walkTo(seat.exit, () => sitAt(seat)); return; }
+    if (Math.hypot(p.x - (24*T + 6), p.y - (LY - 14)) < 18) { walkTo(COFFEE, () => openModal({kind:"coffee"})); return; }
+    if (p.x >= SNACK.x - 4 && p.x <= SNACK.x + SNACK.w + 4 && p.y >= SNACK.y - 10 && p.y <= SNACK.y + SNACK.h + 6) { walkTo(SNACK_STAND, () => openModal({kind:"snack"})); return; }
+    if (h && h.id === "__board") { walkTo(BOARD, () => deskAction("__board")); return; }
+    walkTo({x:p.x, y:p.y});
   });
+}
+/* grid path-finding so a tap anywhere finds its way around walls and furniture */
+function findPath(from, to){
+  const G = 6, cw = Math.ceil(MAP.w / G), ch = Math.ceil(MAP.h / G);
+  const cell = p => [Math.max(0, Math.min(cw - 1, Math.round(p.x / G))), Math.max(0, Math.min(ch - 1, Math.round(p.y / G)))];
+  const free = (cx, cy) => !blocked(cx * G, cy * G);
+  let [sx, sy] = cell(from), [tx, ty] = cell(to);
+  if (!free(tx, ty)) { let best = null, bd = 1e9; for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const x = tx + dx, y = ty + dy; if (x >= 0 && y >= 0 && x < cw && y < ch && free(x, y) && dx*dx + dy*dy < bd) { bd = dx*dx + dy*dy; best = [x, y]; } } if (!best) return null; [tx, ty] = best; }
+  const prev = new Int32Array(cw * ch).fill(-1), q = [sy * cw + sx]; prev[q[0]] = q[0];
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  for (let qi = 0; qi < q.length; qi++) {
+    const c = q[qi], x = c % cw, y = (c / cw) | 0;
+    if (x === tx && y === ty) break;
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy, n = ny * cw + nx;
+      if (nx < 0 || ny < 0 || nx >= cw || ny >= ch || prev[n] !== -1 || !free(nx, ny)) continue;
+      if (dx && dy && (!free(x + dx, y) || !free(x, y + dy))) continue;
+      prev[n] = c; q.push(n);
+    }
+  }
+  const end = ty * cw + tx; if (prev[end] === -1) return null;
+  const pts = []; for (let c = end; c !== prev[c]; c = prev[c]) pts.push({x:(c % cw) * G, y:((c / cw) | 0) * G});
+  pts.reverse();
+  // thin the path: keep corners only
+  const out = []; for (let i = 0; i < pts.length; i++) { if (i === pts.length - 1 || i % 3 === 2) out.push(pts[i]); }
+  return out;
+}
+function walkTo(p, cb){
+  if (MAP.me.sit) standUp();
+  const path = findPath(MAP.me, p) || [];
+  path.push({x:p.x, y:p.y});
+  MAP.path = path; MAP.target = path.shift(); MAP.onArrive = cb || null;
 }
 addEventListener("resize", () => { clearTimeout(MAP.rt); MAP.rt = setTimeout(sizeMap, 120); });
 
-/* keyboard */
 const KEYMAP = {ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down", ArrowLeft:"left", KeyA:"left", ArrowRight:"right", KeyD:"right"};
 const typing = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable); };
 // dev cheat (staging): Alt+Shift+L → your XP jumps to Lv200, Alt+Shift+K → remove the bonus
@@ -842,213 +1382,154 @@ addEventListener("keydown", e => {
 });
 addEventListener("keydown", e => {
   if (!MAP.canvas || S.view !== "office") return;
-  if (e.key === "Enter" && !typing()) { const s = $("#say"); if (s) { s.focus(); e.preventDefault(); } return; }
-  if (typing()) { if (e.key === "Escape") document.activeElement.blur(); return; }
-  if ($("#modal") && !$("#modal").hidden && e.key !== "Escape") return;
-  if (e.key === "Escape" && !$("#modal").hidden) { $("#mclose").click(); return; }
-  if (e.key === "Escape") { const st = $("#stage"); if (st && st.classList.contains("big")) $("#fs").click(); return; }
+  const modal = $("#modal"), modalOpen = modal && !modal.hidden;
+  if (e.key === "Escape") { if (modalOpen) $("#mclose").click(); else if (typing()) document.activeElement.blur(); else if ($("#stage").classList.contains("big")) toggleBig(); return; }
+  if (typing() || modalOpen) return;
+  if (e.key === "Enter") { const s = $("#say"); if (s) { s.focus(); e.preventDefault(); } return; }
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
   const d = KEYMAP[e.code];
-  if (d) { MAP.keys.add(d); MAP.target = null; e.preventDefault(); }
-  if (e.code === "KeyE" && MAP.near) openNear();
+  if (d) { MAP.keys.add(d); MAP.target = null; MAP.path = null; MAP.onArrive = null; e.preventDefault(); }
+  if (e.code === "KeyE" || e.code === "Space") { e.preventDefault(); interact(); }
   const n = ["Digit1","Digit2","Digit3","Digit4","Digit5"].indexOf(e.code); if (n >= 0) emote(n);
 });
+function openNear(){ interact(); }
 addEventListener("keyup", e => { const d = KEYMAP[e.code]; if (d) MAP.keys.delete(d); });
 addEventListener("blur", () => MAP.keys.clear());
-function openNear(){ if (MAP.near) deskAction(MAP.near.id); }
-function deskAction(id){
-  MAP.keys.clear();
-  if (id === "__board") { S.openBoard = true; S.openRoom = null; S.openInbox = false; render(); return; }
-  if (id.startsWith("__free:")) {
-    const idx = +id.slice(7);
-    if (!S.myId) { toast("ล็อกอิน claude.ai ก่อน ถึงจะจองโต๊ะได้"); return; }
-    if (S.readOnly) { toast("ยังไม่มีสิทธิ์จองโต๊ะ ขอให้เจ้าของออฟฟิศเชิญแบบ Editor"); return; }
-    if (!myRoom()) { S.setupDesk = idx; S.setupLook = hashLook(S.myId); S.setupDeco = Object.assign({}, DEFAULT_DECO); S.editing = true; }
-    else S.moveTo = idx;
-  } else { S.editing = false; S.moveTo = null; S.openRoom = id; }
-  render();
-}
 
-function plant(g, P, x, y){ g.fillStyle = P.desk; g.fillRect(x+2, y+9, 8, 6); g.fillStyle = P.leaf; g.fillRect(x, y, 12, 9); g.fillRect(x+3, y-3, 6, 4); g.fillStyle = P.accent2; g.fillRect(x+2, y+2, 3, 3); }
-
-function drawScene(){
-  const g = MAP.octx, P = palette(), W = MAP.w, H = MAP.h;
-  g.imageSmoothingEnabled = false;
-  // floor tiles, two-tone
-  for (let y = 0; y < H; y += T) for (let x = 0; x < W; x += T) { g.fillStyle = ((x + y) / T) % 2 ? P.tileAlt : P.tile; g.fillRect(x, y, T, T); }
-  g.fillStyle = P.tileLine; for (let x = 0; x < W; x += T) g.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += T) g.fillRect(0, y, W, 1);
-  // lounge wood
-  const lx = 19 * T, ly = 9 * T;
-  g.fillStyle = P.wood; g.fillRect(lx, ly, W - lx, H - ly);
-  g.fillStyle = P.woodB; for (let y = ly; y < H; y += 6) { g.fillRect(lx, y, W - lx, 1); for (let x = lx + ((y/6) % 2 ? 10 : 0); x < W; x += 20) g.fillRect(x, y, 1, 6); }
-  // partition + doorway
-  g.fillStyle = P.wallTop; g.fillRect(lx, ly - 6, W - lx, 8); g.fillStyle = P.wall; g.fillRect(lx, ly + 2, W - lx, 2);
-  g.fillRect(lx - 3, ly - 6, 3, 28); g.fillRect(lx - 3, ly + 52, 3, H - ly - 52);
-  g.fillStyle = P.amber; g.fillRect(lx - 4, ly + 20, 5, 2); g.fillRect(lx - 4, ly + 52, 5, 2);
-  // kitchen
-  g.fillStyle = P.panel; g.fillRect(22*T, ly - 10, 4*T, 12); g.fillStyle = P.accent2; g.fillRect(22*T, ly - 10, 4*T, 2);
-  g.fillStyle = P.blue; g.fillRect(22*T + 8, ly - 16, 10, 10); g.fillStyle = P.screen; g.fillRect(22*T + 10, ly - 22, 6, 7);
-  g.fillStyle = P.wall; g.fillRect(24*T, ly - 15, 12, 9); g.fillStyle = P.danger; g.fillRect(24*T + 8, ly - 13, 2, 2);
-  g.fillStyle = P.accent; g.fillRect(27*T, ly - 22, 18, 26); g.fillStyle = P.screen; g.fillRect(27*T + 3, ly - 19, 12, 9); g.fillStyle = P.amber; g.fillRect(27*T + 3, ly - 8, 12, 2);
-  plant(g, P, 20*T + 2, ly - 12); plant(g, P, 29*T - 2, ly - 12);
-  // sofa, rug, table
-  const sx = 23*T, sy = H - 5*T;
-  g.fillStyle = P.rug; g.fillRect(sx - 10, sy + 14, 4*T + 6, 3*T - 4); g.fillStyle = P.panel; g.globalAlpha = .35; g.fillRect(sx - 6, sy + 18, 4*T - 2, 2); g.fillRect(sx - 6, sy + 3*T + 4, 4*T - 2, 2); g.globalAlpha = 1;
-  g.fillStyle = P.sofa; g.fillRect(sx, sy, 5*T, 12); g.fillRect(sx + 5*T - 12, sy, 12, 3*T);
-  g.fillStyle = P.accent; g.fillRect(sx + 2, sy + 2, 5*T - 16, 8); g.fillRect(sx + 5*T - 10, sy + 12, 8, 3*T - 14);
-  g.fillStyle = P.panel; g.fillRect(sx + 14, sy + 24, 2*T - 8, 12); g.fillStyle = P.amber; g.fillRect(sx + 20, sy + 27, 5, 5);
-  plant(g, P, 20*T, H - 2*T);
-  // top wall
-  g.fillStyle = P.wallTop; g.fillRect(0, 0, W, 2*T); g.fillStyle = P.wall; g.fillRect(0, 2*T - 3, W, 3);
-  g.fillStyle = P.panel; g.globalAlpha = .45; for (let x = 0; x < W; x += 8) g.fillRect(x, 2*T - 6, 4, 2); g.globalAlpha = 1;
-  [[1.2, P.danger], [2.3, P.amber], [3.4, P.accent2]].forEach(([t, c]) => { g.fillStyle = P.wall; g.fillRect(t*T, 6, 14, 14); g.fillStyle = c; g.fillRect(t*T + 2, 8, 10, 10); g.fillStyle = P.panel; g.fillRect(t*T + 4, 10, 4, 4); });
-  g.fillStyle = P.wall; g.fillRect(6*T, 4, 52, 22); g.fillStyle = P.panel; g.fillRect(6*T + 2, 6, 48, 18);
-  g.fillStyle = P.accent; g.fillRect(6*T + 6, 10, 20, 2); g.fillStyle = P.blue; g.fillRect(6*T + 6, 15, 30, 2); g.fillStyle = P.accent2; g.fillRect(6*T + 6, 20, 14, 2);
-  g.fillStyle = P.desk; g.fillRect(12*T, 3, 30, 27); g.fillStyle = P.deskTop; g.fillRect(12*T + 2, 12, 26, 1); g.fillRect(12*T + 2, 21, 26, 1);
-  [[2,P.danger],[6,P.accent2],[10,P.amber],[15,P.chair],[20,P.accent]].forEach(([o,c]) => { g.fillStyle = c; g.fillRect(12*T + 2 + o, 5, 3, 7); g.fillRect(12*T + 4 + o, 14, 3, 7); });
-  plant(g, P, 15*T, 14);
-  g.fillStyle = P.wall; g.fillRect(17*T, 5, 34, 20); g.fillStyle = P.panel; g.fillRect(17*T + 2, 7, 30, 16);
-  g.fillStyle = P.accent2; g.fillRect(17*T + 6, 15, 4, 6); g.fillStyle = P.amber; g.fillRect(17*T + 12, 11, 4, 10); g.fillStyle = P.accent; g.fillRect(17*T + 18, 13, 4, 8); g.fillStyle = P.blue; g.fillRect(17*T + 24, 9, 4, 12);
-  g.fillStyle = P.wall; g.fillRect(21*T, 6, 7*T, 20); g.fillStyle = P.accent; g.fillRect(21*T + 2, 8, 7*T - 4, 16);
-  // meeting table
-  const mx = 20*T + 8, my = 4*T + 4;
-  g.fillStyle = P.chair; for (let i = 0; i < 4; i++) { g.fillRect(mx + 8 + i*20, my - 9, 10, 8); g.fillRect(mx + 8 + i*20, my + 2*T + 2, 10, 8); }
-  g.fillStyle = P.desk; g.fillRect(mx, my, 6*T, 2*T); g.fillStyle = P.deskTop; g.fillRect(mx + 2, my + 2, 6*T - 4, 2*T - 6);
-  g.fillStyle = P.panel; g.fillRect(mx + 20, my + 8, 10, 7); g.fillRect(mx + 54, my + 10, 9, 6);
-  // desks
-  const online = onlineIds();
-  MAP.hits = [];
-  MAP.slots.forEach((s, i) => {
-    const r = MAP.order[i];
-    const freeId = "__free:" + i;
-    const dx = s.x + 4, dy = s.y + 10;
-    const id = r ? r.id : freeId;
-    const hot = MAP.hover === id || (MAP.near && MAP.near.id === id);
-    if (hot || (r && r.id === S.openRoom) || (!r && (S.setupDesk === i || S.moveTo === i) )) { g.fillStyle = P.accent; g.globalAlpha = .2; g.fillRect(s.x, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
-    if (r && r.id === S.myId) { g.fillStyle = P.accent2; g.globalAlpha = .22; g.fillRect(s.x, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
-    const stats = r ? roomStats(r) : null, busy = !!(stats && stats.open);
-    const mons = r ? Math.min(3, Math.max(1, (r.clients || []).length)) : 1;
-    const deco = r ? decoOf(r) : (S.editing && S.setupDesk === i && S.setupDeco ? S.setupDeco : {color:6, chair:4, L:"none", R:"none", F:"none"});
-    if (!r && !(S.editing && S.setupDesk === i)) g.globalAlpha = .55;
-    drawDesk(g, P, dx, dy, {deco, busy, mons, anim:MAP.anim});
-    g.globalAlpha = 1;
-    const chairFront = {x:dx + 28, y:dy + 50};
-    if (r && busy && !online.has(r.id)) px(g, BACK, Number(r.avatar)||0, dx + 18, dy + 13, 0);
-    MAP.hits.push({id, desk:chairFront, x:s.x, y:s.y, w:4*T - 4, h:4*T});
-  });
-  MAP.hits.push({id:"__board", desk:{x:6*T + 26, y:2*T + 10}, x:6*T - 2, y:2, w:56, h:2*T});
-  if (S.board && S.board.text) { g.fillStyle = P.danger; g.fillRect(6*T + 46, 6, 4, 4); }
-  // characters, y-sorted
-  const chars = [];
-  if (MAP.me && S.view === "office") chars.push({x:MAP.me.x, y:MAP.me.y, dir:MAP.me.dir, moving:MAP.me.moving, look:myLook(), me:true});
-  Object.values(MAP.remote).forEach(r => chars.push(r));
-  chars.sort((a,b) => a.y - b.y).forEach(ch => {
-    const step = ch.moving ? (Math.floor(MAP.last / 150) % 2) + 1 : 0;
-    g.fillStyle = ch.me ? P.accent : P.wall; g.globalAlpha = ch.me ? .55 : .25; g.fillRect(Math.round(ch.x) - 8, Math.round(ch.y) - 2, 16, 4); g.globalAlpha = 1;
-    const pat = ch.dir === "up" ? BACK : (ch.dir === "left" || ch.dir === "right") ? SIDE : SPRITE;
-    px(g, pat, ch.look, Math.round(ch.x) - 10, Math.round(ch.y) - 24, step, ch.dir === "left");
-  });
+/* ---------- sitting + interactions ---------- */
+function sitAt(seat){
+  const me = MAP.me;
+  me.x = seat.x; me.y = seat.y; me.dir = seat.dir; me.sit = seat.id; me.moving = false;
+  MAP.target = null; MAP.onArrive = null; sendPresence(true); updatePrompt(true);
 }
-
-function bubble(g, P, x, y, text, tone, maxW){
-  g.font = "600 6.5px 'IBM Plex Sans Thai', sans-serif";
-  let t = text; const lim = maxW || 120;
-  while (g.measureText(t).width > lim && t.length > 2) t = t.slice(0, -2);
-  if (t !== text) t += "…";
-  const w = Math.ceil(g.measureText(t).width) + 8, h = 11;
-  const bx = Math.max(1, Math.min(MAP.w - w - 1, x - w/2)), by = y - h;
-  const edge = tone === "bad" ? P.danger : tone === "say" ? P.accent : P.wall;
-  g.fillStyle = edge; g.fillRect(bx - .7, by - .7, w + 1.4, h + 1.4);
-  g.fillStyle = tone === "bad" ? P.danger : P.panel; g.fillRect(bx, by, w, h);
-  g.beginPath(); g.moveTo(x - 2.5, by + h); g.lineTo(x + 2.5, by + h); g.lineTo(x, by + h + 3); g.closePath(); g.fillStyle = edge; g.fill();
-  g.fillStyle = tone === "bad" ? "#ffffff" : P.ink; g.textBaseline = "middle"; g.textAlign = "left";
-  g.fillText(t, bx + 4, by + h/2 + .3);
+function standUp(){
+  const me = MAP.me, seat = seatById(me.sit);
+  if (seat) { me.x = seat.exit.x; me.y = seat.exit.y; if (blocked(me.x, me.y)) unstick(me); }
+  me.sit = null;
+  if (S.focus) { S.focus = null; toast("ลุกจากที่นั่ง โฟกัสถูกยกเลิก"); renderToolbar(); }
+  sendPresence(true);
 }
-function draw(){
-  if (!MAP.canvas) return;
-  drawScene();
-  const c = MAP.ctx, P = palette(), k = MAP.k * MAP.dpr, now = Date.now();
-  c.setTransform(1,0,0,1,0,0); c.imageSmoothingEnabled = false;
-  c.drawImage(MAP.off, 0, 0, MAP.canvas.width, MAP.canvas.height);
-  c.setTransform(k, 0, 0, k, 0, 0);
-  // light follows the real clock: warm at golden hour, dim blue at night (monitors stay bright)
-  const hr = new Date().getHours() + new Date().getMinutes() / 60;
-  const tint = hr >= 19 || hr < 6 ? "rgba(24,30,78,.30)" : hr >= 17 ? "rgba(255,140,60,.12)" : hr < 8 ? "rgba(255,200,140,.10)" : null;
-  if (tint) {
-    c.fillStyle = tint; c.fillRect(0, 0, MAP.w, MAP.h);
-    if (hr >= 19 || hr < 6) { c.globalCompositeOperation = "lighter"; c.fillStyle = "rgba(94,240,210,.10)"; MAP.slots.forEach((sl, i) => { if (MAP.order[i]) c.fillRect(sl.x + 10, sl.y - 2, 44, 22); }); c.globalCompositeOperation = "source-over"; }
-  }
-  c.font = "700 9px 'Pixelify Sans', monospace"; c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "middle";
-  c.fillText("PIXEL HQ", 24.5*T, 16.5);
-  c.font = "600 5.5px 'IBM Plex Sans Thai', sans-serif"; c.fillStyle = P.muted;
-  c.fillText("ห้องประชุม", 23.5*T, 2*T + 7);
-  c.textAlign = "right"; c.fillText("มุมพักผ่อน", MAP.w - 6, MAP.h - 7);
-  MAP.slots.forEach((s, i) => {
-    const r = MAP.order[i], cx = s.x + 32;
-    if (r) {
-      const st = roomStats(r);
-      let label = r.roomName || nameOf(r.id); if (label.length > 16) label = label.slice(0, 15) + "…";
-      c.font = (r.id === S.myId ? "700 " : "600 ") + "6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
-      c.fillStyle = r.id === S.myId ? P.accent : P.ink; c.fillText(label, cx, s.y + 54);
-      if (st.open) bubble(c, P, cx, s.y + 3, st.late ? `เลยกำหนด ${st.late}!` : st.today ? `วันนี้ ${st.today} · ค้าง ${st.open}` : `ค้าง ${st.open} งาน`, st.late ? "bad" : "");
-    } else {
-      const canBook = S.myId && !S.readOnly;
-      c.font = "700 6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
-      c.fillStyle = canBook ? P.accent : P.muted;
-      c.fillText(!canBook ? "โต๊ะว่าง" : myRoom() ? "ย้ายมาโต๊ะนี้" : "+ จองโต๊ะนี้", cx, s.y + 54);
+function nearest(){
+  const me = MAP.me; if (!me) return null;
+  if (me.sit) {
+    const seat = seatById(me.sit);
+    if (seat && seat.kind === "desk") {
+      const r = MAP.order[seat.slot];
+      return {deskId: r ? r.id : "__free:" + seat.slot, label: r ? `E เปิดห้อง ${r.roomName || nameOf(r.id)} · เดินเพื่อลุก` : (myRoom() ? "E ย้ายมาโต๊ะนี้ · เดินเพื่อลุก" : "E จองโต๊ะนี้ · เดินเพื่อลุก"), act:() => deskAction(r ? r.id : "__free:" + seat.slot)};
     }
-  });
-  const tag = (x, y, text, mine) => {
-    c.font = "700 5.8px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-    const w = c.measureText(text).width + 9;
-    c.fillStyle = mine ? P.accent : "rgba(31,42,68,.78)"; c.fillRect(x - w/2, y - 4.5, w, 9);
-    c.fillStyle = "#3ee07a"; c.fillRect(x - w/2 + 2.5, y - 1, 2.2, 2.2);
-    c.fillStyle = "#ffffff"; c.fillText(text, x + 1.5, y + .3);
-  };
-  const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
-  if (MAP.me && S.view === "office") {
-    tag(MAP.me.x, MAP.me.y - 29, S.myId && myRoom() ? `คุณ · Lv${progOf(S.myId).level}` : "คุณ", true);
-    if (MAP.me.say && now - MAP.me.sayAt < 7000) bubble(c, P, MAP.me.x, MAP.me.y - 35, MAP.me.say, "say", 140);
+    return {label:"นั่งอยู่ · เดินเพื่อลุก", act:() => standUp()};
   }
-  Object.values(MAP.remote).forEach(r => {
-    tag(r.x, r.y - 29, cut(r.by ? nameOf(r.by) : "ผู้มาเยือน", 12) + (r.by && S.rooms.some(x => x.id === r.by) ? ` · Lv${progOf(r.by).level}` : ""), false);
-    if (r.say && now - r.sayAt < 7000) bubble(c, P, r.x, r.y - 35, r.say, "say", 140);
-  });
+  const cand = [];
+  MAP.seats.forEach(s => cand.push({d:Math.hypot(s.exit.x - me.x, s.exit.y - me.y), deskId: s.kind === "desk" ? (MAP.order[s.slot] ? MAP.order[s.slot].id : "__free:" + s.slot) : null, label: s.kind === "desk" ? "E นั่งโต๊ะนี้" : s.kind === "sofa" ? "E นั่งโซฟา" : "E นั่งห้องประชุม", act:() => sitAt(s)}));
+  cand.push({d:Math.hypot(COFFEE.x - me.x, COFFEE.y - me.y), label:"E ชงเครื่องดื่ม", act:() => openModal({kind:"coffee"})});
+  cand.push({d:Math.min(Math.hypot(SNACK_STAND.x - me.x, SNACK_STAND.y - me.y), Math.hypot(SNACK.x + 10 - me.x, SNACK.y + SNACK.h + 8 - me.y)), label:"E หยิบขนม", act:() => openModal({kind:"snack"})});
+  cand.push({d:Math.hypot(BOARD.x - me.x, BOARD.y - me.y), label:"E เปิดกระดานทีม", act:() => deskAction("__board")});
+  CATS.forEach(c => { const st = MAP.cats[c.id]; if (st) cand.push({d:Math.hypot(st.x - me.x, st.y - me.y) - 4, label: S.myCat === c.id ? `E ปล่อย${c.name}` : `E เรียก${c.name}`, act:() => callCat(c.id)}); });
+  cand.sort((a,b) => a.d - b.d);
+  return cand[0] && cand[0].d < 20 ? cand[0] : null;
+}
+function interact(){ const n = MAP.near; if (n && n.act) n.act(); }
+function updatePrompt(force){
+  const el = $("#prompt"); if (!el) return;
+  const n = nearest();
+  const key = n ? n.label : "";
+  MAP.near = n;
+  if (!force && el.dataset.k === key) return;
+  el.dataset.k = key;
+  if (!n) { el.hidden = true; return; }
+  el.textContent = n.label.replace(/^E /, "แตะ/E: ");
+  el.hidden = false;
+}
+function brewCoffee(drinkId){
+  const d = drinkOf(drinkId) || DRINKS[0], now = Date.now();
+  if (S.brew && now < S.brew.until) return;
+  if (MAP.me.sit) standUp();
+  MAP.target = null; MAP.path = null;
+  if (Math.hypot(COFFEE.x - MAP.me.x, COFFEE.y - MAP.me.y) > 24) { walkTo(COFFEE, () => brewCoffee(drinkId)); return; }
+  MAP.me.dir = "up";
+  S.brew = {until: now + 3500, ms:3500, label:"กำลังชง " + d.name};
+  sendPresence(true);
+  setTimeout(() => {
+    S.brew = null; S.hold = {id:d.id, until:Date.now() + 180000};
+    MAP.me.dir = "down"; sendPresence(true); emote("☕");
+    toast(`ได้${d.name}แล้ว ถือเดินต่อได้เลย`);
+  }, 3500);
+}
+function eatSnack(id){
+  const s = snackOf(id) || SNACKS[0];
+  if (MAP.me.sit) standUp();
+  if (Math.hypot(SNACK_STAND.x - MAP.me.x, SNACK_STAND.y - MAP.me.y) > 30) { walkTo(SNACK_STAND, () => eatSnack(id)); return; }
+  S.hold = {id:s.id, until:Date.now() + 90000}; MAP.me.dir = "down";
+  MAP.me.say = "หม่ำๆ อร่อยจัง"; MAP.me.sayAt = Date.now();
+  sendPresence(true); emote(s.fest ? "🎃" : "😋");
+  for (let i = 0; i < 10; i++) MAP.fx.push({x:MAP.me.x, y:MAP.me.y + 4, vx:(Math.random() - .5) * 30, vy:-10 - Math.random() * 20, c:"#d9a066", t0:Date.now()});
+  toast(`หยิบ${s.name}แล้ว`);
 }
 
-/* movement + presence */
+/* ---------- focus (pomodoro) ---------- */
+function startFocus(min){
+  const r = myRoom();
+  if (!r) { toast("จองโต๊ะก่อน ถึงจะเริ่มโฟกัสได้"); closeModal(); return; }
+  const cur = MAP.me.sit ? seatById(MAP.me.sit) : null;
+  if (!cur || (cur.kind !== "meet" && cur.kind !== "desk")) {
+    const slot = MAP.order.findIndex(x => x && x.id === S.myId);
+    if (slot >= 0) sitAt(seatById("d" + slot));
+  }
+  S.focus = {until: Date.now() + min * 60000, min};
+  sendPresence(true); renderToolbar(); closeModal();
+  toast(`เริ่มโฟกัส ${min} นาที สู้ๆ`);
+}
+function checkFocus(){
+  if (!S.focus || Date.now() < S.focus.until) return;
+  const min = S.focus.min; S.focus = null;
+  const seat = MAP.me.sit ? seatById(MAP.me.sit) : null;
+  const together = seat && seat.kind === "meet" && Object.values(MAP.remote).some(r => r.sit && r.sit.startsWith("m") && r.focus);
+  toast(`โฟกัสครบ ${min} นาที!${together ? " (โฟกัสพร้อมเพื่อน)" : ""} ไปพักกาแฟกัน`);
+  confetti(MAP.me.x, MAP.me.y);
+  standUp(); walkTo(COFFEE, () => brewCoffee("latte"));
+  renderToolbar();
+}
+
+/* ---------- movement loop ---------- */
 function stepMe(dt){
   const me = MAP.me; if (!me) return;
   let vx = 0, vy = 0;
   const k = MAP.keys, dp = MAP.dpad;
   if (k.has("left") || dp === "left") vx -= 1; if (k.has("right") || dp === "right") vx += 1;
   if (k.has("up") || dp === "up") vy -= 1; if (k.has("down") || dp === "down") vy += 1;
+  if ((vx || vy) && me.sit) standUp();
+  if ((vx || vy) && S.brew) { S.brew = null; toast("เดินออกมาก่อน เลยไม่ได้เครื่องดื่ม"); sendPresence(true); }
   if (!vx && !vy && MAP.target) {
     const dx = MAP.target.x - me.x, dy = MAP.target.y - me.y, d = Math.hypot(dx, dy);
-    if (d < 2) MAP.target = null; else { vx = dx / d; vy = dy / d; }
+    if (d < 2) { if (MAP.path && MAP.path.length) MAP.target = MAP.path.shift(); else { MAP.target = null; const cb = MAP.onArrive; MAP.onArrive = null; if (cb) cb(); } }
+    else { vx = dx / d; vy = dy / d; }
   }
-  const sp = 78 * dt;
   let moved = false;
   if (vx || vy) {
     const n = Math.hypot(vx, vy); vx /= n; vy /= n;
-    const nx = me.x + vx * sp, ny = me.y + vy * sp;
+    const sp = 80 * dt, nx = me.x + vx * sp, ny = me.y + vy * sp;
     if (!blocked(nx, me.y)) { me.x = nx; moved = true; }
     if (!blocked(me.x, ny)) { me.y = ny; moved = true; }
-    if (!moved) MAP.target = null;
+    if (!moved && MAP.target) { // slide around obstacles
+      const alt = [[vy, -vx], [-vy, vx]];
+      for (const [ax, ay] of alt) { if (!blocked(me.x + ax * sp, me.y + ay * sp)) { me.x += ax * sp; me.y += ay * sp; moved = true; break; } }
+      if (!moved) { MAP.target = null; MAP.onArrive = null; }
+    }
     me.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? "left" : "right") : (vy < 0 ? "up" : "down");
   }
   me.moving = moved;
-  // nearest desk
-  let best = null, bd = 30;
-  MAP.hits.forEach(h => { if (!h.desk) return; const d = Math.hypot(h.desk.x - me.x, h.desk.y - me.y); if (d < bd) { bd = d; best = h; } });
-  if ((best && best.id) !== (MAP.near && MAP.near.id)) { MAP.near = best; updatePrompt(); }
+  updatePrompt();
   sendPresence();
 }
-function sendPresence(){
-  if (!S.room || !MAP.me) return;
+function presenceState(){
   const me = MAP.me;
-  const p = {x:Math.round(me.x), y:Math.round(me.y), dir:me.dir, mv:me.moving ? 1 : 0, look:myLook(), uid:S.myId || null};
-  const key = JSON.stringify(p);
-  if (key === MAP.lastSent) return;
+  return {x:Math.round(me.x), y:Math.round(me.y), dir:me.dir, mv:me.moving ? 1 : 0, look:myLook(), uid:S.myId || null,
+    sit:me.sit || null, focus:S.focus ? S.focus.until : null, hold:S.hold && Date.now() < S.hold.until ? S.hold.id : null, brewing:S.brew && Date.now() < S.brew.until ? 1 : null, cat:S.myCat || null};
+}
+function sendPresence(force){
+  if (!S.room || !MAP.me) return;
+  const p = presenceState(), key = JSON.stringify(p);
+  if (!force && key === MAP.lastSent) return;
   MAP.lastSent = key;
   S.room.presence(p).catch(() => {});
 }
@@ -1060,21 +1541,95 @@ function stepRemote(dt){
     r.moving = r.mv || d > 1;
   });
 }
-function updatePrompt(){
-  const el = $("#prompt"); if (!el) return;
-  const n = MAP.near;
-  if (!n) { el.hidden = true; return; }
-  const r = S.rooms.find(x => x.id === n.id);
-  el.textContent = n.id === "__board" ? "กด E หรือแตะที่นี่ เพื่อเปิดกระดานทีม" : n.id.startsWith("__free:") ? (myRoom() ? "กด E หรือแตะที่นี่ เพื่อย้ายมาโต๊ะนี้" : "กด E หรือแตะที่นี่ เพื่อจองโต๊ะนี้") : `กด E หรือแตะที่นี่ เพื่อเปิด ${r ? (r.roomName || nameOf(r.id)) : "ห้อง"}`;
-  el.hidden = false;
-}
 function loop(t){
   requestAnimationFrame(loop);
-  if (!MAP.canvas || document.hidden || S.view !== "office") { MAP.last = t; return; }
-  const dt = Math.min(.05, (t - (MAP.prevT || t)) / 1000); MAP.prevT = t; MAP.last = t;
-  MAP.anim = Math.floor(t / 110);
-  stepMe(dt); stepRemote(dt); draw();
+  if (!MAP.canvas || document.hidden || S.view !== "office") { MAP.prevT = t; return; }
+  const dt = Math.min(.05, (t - (MAP.prevT || t)) / 1000); MAP.prevT = t;
+  ANIM = Math.floor(t / 110); MAP.anim = ANIM; MAP.last = t;
+  if (S.hold && Date.now() > S.hold.until) { S.hold = null; sendPresence(true); }
+  stepMe(dt); stepRemote(dt); stepCats(dt, Date.now()); checkFocus(); draw();
+  if (S.focus && ANIM % 9 === 0) renderToolbar();
 }
+
+/* ---------- toolbar + small modals (production look) ---------- */
+function renderToolbar(){
+  const tb = $("#toolbar"); if (!tb) return;
+  const f = S.focus, big = $("#stage").classList.contains("big"), n = unread();
+  tb.innerHTML = `<span class="tb-title">PIXEL HQ</span><span class="tb-on"><i class="live"></i>ออนไลน์ <b id="tbCount">${$("#onlineCount") ? $("#onlineCount").textContent : 1}</b> คน</span>
+    <div class="hud">
+      <button class="pbtn ${f ? "focus-on" : ""}" id="btnFocus">${f ? `⏱ ${mmss(f.until - Date.now())} หยุด` : "⏱ โฟกัส"}</button>
+      <button class="pbtn" id="btnCats">🐈 แมว${S.myCat ? `: ${esc(catById(S.myCat).name)}` : ""}</button>
+      <button class="pbtn ${S.tts ? "focus-on" : ""}" id="btnVoice">🎙 คุยเสียง</button>
+      <button class="pbtn" id="btnRadio" aria-pressed="${MUSIC.on}">♪ ${MUSIC.on ? esc(TRACKS[S.track].name) : "วิทยุ"}</button>
+      <button class="pbtn" id="bell" aria-label="การแจ้งเตือน">🔔<span id="bellN">${n ? Math.min(n, 99) : ""}</span></button>
+      <button class="pbtn" id="fs">${big ? "ย่อจอ" : "เต็มจอ"}</button>
+    </div>`;
+}
+function toggleBig(){
+  const st = $("#stage"); if (!st) return; const on = !st.classList.contains("big");
+  st.classList.toggle("big", on); document.body.style.overflow = on ? "hidden" : ""; renderToolbar(); sizeMap();
+}
+function openModal(m){ S.miniModal = m; S.openRoom = null; S.openBoard = false; S.openInbox = false; S.editing = false; S.moveTo = null; MAP.keys.clear(); render(); }
+function closeModal(){ S.miniModal = null; render(); }
+function deskAction(id){
+  MAP.keys.clear(); S.miniModal = null;
+  if (id === "__board") { S.openBoard = true; S.openRoom = null; S.openInbox = false; render(); return; }
+  if (id.startsWith("__free:")) {
+    const idx = +id.slice(7);
+    if (!S.myId) { toast("ล็อกอิน claude.ai ก่อน ถึงจะจองโต๊ะได้"); return; }
+    if (S.readOnly) { toast("ยังไม่มีสิทธิ์จองโต๊ะ ขอให้เจ้าของออฟฟิศเชิญแบบ Editor"); return; }
+    if (!myRoom()) { S.setupDesk = idx; S.setupLook = hashLook(S.myId); S.setupDeco = Object.assign({}, DEFAULT_DECO); S.editing = true; }
+    else S.moveTo = idx;
+  } else { S.editing = false; S.moveTo = null; S.openRoom = id; }
+  render();
+}
+function renderMini(b){
+  const m = S.miniModal, fn = {coffee:mCoffee, snack:mSnack, voice:mVoice, focus:mFocus, radio:mRadio, cats:mCats}[m && m.kind];
+  if (fn) fn(b); else S.miniModal = null;
+}
+function iconCanvas(drawFn){ const c = document.createElement("canvas"); c.width = 12; c.height = 12; const g = c.getContext("2d"); g.imageSmoothingEnabled = false; drawFn(g); c.style.cssText = "width:36px;height:36px;image-rendering:pixelated"; return c; }
+function mCoffee(b){
+  const fest = festival(), list = DRINKS.filter(d => !d.fest || d.fest === fest);
+  b.innerHTML = `<div class="panel"><h2>เครื่องชงกาแฟ</h2><p class="note">เลือกเมนู รอชง 3 วินาที แล้วถือแก้วเดินต่อได้ 3 นาที ชงครบ 3 แก้วในวันเดียวได้ฉายา “คอฟฟี่แอดดิค”</p>
+    <div class="shop">${list.map(d => `<button class="item" data-drink="${d.id}"><span data-dic="${d.id}"></span><b>${esc(d.name)}</b>${d.fest ? `<span class="note">เมนูพิเศษฮาโลวีน</span>` : ""}</button>`).join("")}</div></div>`;
+  b.querySelectorAll("[data-dic]").forEach(s => s.replaceWith(iconCanvas(g => drawDrink(g, drinkOf(s.dataset.dic), 3, 4, 1))));
+}
+function mSnack(b){
+  const fest = festival(), list = SNACKS.filter(d => !d.fest || d.fest === fest);
+  b.innerHTML = `<div class="panel"><h2>มุมขนม</h2><p class="note">หยิบได้ไม่จำกัด แวะครบ 3 ครั้งในวันเดียวได้ฉายา “สายกิน”</p>
+    <div class="shop">${list.map(d => `<button class="item" data-snack="${d.id}"><span data-sic="${d.id}"></span><b>${esc(d.name)}</b>${d.fest ? `<span class="note">ของพิเศษฮาโลวีน</span>` : ""}</button>`).join("")}</div></div>`;
+  b.querySelectorAll("[data-sic]").forEach(s => s.replaceWith(iconCanvas(g => drawSnack(g, s.dataset.sic, 2, 3, 1))));
+}
+function mVoice(b){
+  const has = "speechSynthesis" in window;
+  b.innerHTML = `<div class="panel"><h2>คุยเสียง</h2>
+    <p class="note">หน้านี้เปิดไมโครโฟนหรือโทรหากันในตัวไม่ได้ (ระบบความปลอดภัยของ claude.ai ไม่อนุญาต) เลยให้ตัวละครอ่านแชทออกเสียงแทน</p>
+    ${has ? `<p class="note">เปิดแล้ว ข้อความที่เพื่อนพิมพ์จะถูกอ่านออกเสียงบนเครื่องของคุณ เหมือนเพื่อนพูดอยู่ข้างๆ (ต่างคนต่างเปิดเองบนเครื่องตัวเอง)</p><button class="btn ${S.tts ? "" : "primary"}" id="ttsToggle">${S.tts ? "ปิดเสียงอ่านแชท" : "เปิดเสียงอ่านแชท"}</button>` : `<p class="note">เบราว์เซอร์นี้อ่านออกเสียงไม่ได้</p>`}</div>`;
+}
+function mFocus(b){
+  b.innerHTML = `<div class="panel"><h2>โหมดโฟกัส</h2><p class="note">ตัวละครจะนั่งที่โต๊ะของคุณ มีป้าย “ห้ามรบกวน” ให้เพื่อนเห็น ครบเวลาแล้วลุกไปพักกาแฟเอง ถ้าลุกก่อนเวลาจะยกเลิก<br>อยากโฟกัสพร้อมเพื่อน ให้ไปนั่งห้องประชุมก่อนแล้วค่อยกดเริ่ม</p>
+    <div class="btnrow">${[15,25,50].map(n => `<button class="btn ${n === 25 ? "primary" : ""}" data-focus="${n}">${n} นาที</button>`).join("")}</div></div>`;
+}
+function mRadio(b){
+  b.innerHTML = `<div class="panel"><h2>วิทยุออฟฟิศ</h2>
+    <div class="tracks">${TRACKS.map((t, i) => `<button class="btn ${MUSIC.on && S.track === i ? "primary" : ""}" data-track="${i}">${esc(t.name)}</button>`).join("")}<button class="btn" data-track="off">ปิดเพลง</button></div>
+    <div class="field"><label for="vol">ความดัง</label><input type="range" id="vol" min="0" max="1" step="0.05" value="${MUSIC.vol}" style="accent-color:var(--accent)"></div></div>`;
+}
+function mCats(b){
+  const fol = catFollowers();
+  b.innerHTML = `<div class="panel"><h2>แมวประจำออฟฟิศ</h2><p class="note">แตะเพื่อเรียกมาเดินตาม พอนั่งเก้าอี้ แมวจะขึ้นมานอนบนโต๊ะด้วย ส้มๆ ชอบไปนอนบนโต๊ะคนที่งานค้างน้อยที่สุด</p>
+    <div class="cats">${CATS.map(c => { const f = fol[c.id]; const who = f ? (f.me ? "เดินตามคุณอยู่" : `เดินตาม ${f.r.by ? nameOf(f.r.by) : "เพื่อน"}`) : "เดินเล่นอยู่"; return `<div class="catcard"><canvas data-cat="${c.id}" width="48" height="32"></canvas><b>${esc(c.name)}</b><span>${esc(c.desc)}</span><span>${esc(who)}</span><button class="mini ${S.myCat === c.id ? "" : "primary"}" data-callcat="${c.id}">${S.myCat === c.id ? "ปล่อยไปเล่น" : "เรียกมานั่งด้วย"}</button></div>`; }).join("")}</div></div>`;
+  b.querySelectorAll("[data-cat]").forEach(cv => { const g = cv.getContext("2d"); g.imageSmoothingEnabled = false; drawCat(g, catById(cv.dataset.cat), 24, 26, "sit", "right", 0); });
+}
+function speak(text){
+  try {
+    if (!("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text); u.lang = "th-TH"; u.rate = 1.05;
+    const v = speechSynthesis.getVoices().find(v => /^th/i.test(v.lang)); if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch {}
+}
+
 requestAnimationFrame(loop);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
 
@@ -1084,6 +1639,7 @@ function connectRoom(room){
   room.onPeers(async ch => {
     const seen = new Set();
     ch.peers.forEach(p => {
+      if (p.isMe && p.sameTab) { S.myPeer = p.peer; return; }
       if (p.kind !== "viewer" || p.sameTab) return;
       const pr = p.presence || {};
       if (typeof pr.x !== "number" || typeof pr.y !== "number") return;
@@ -1095,10 +1651,13 @@ function connectRoom(room){
       r.mv = !!pr.mv; r.look = Math.abs(Number(pr.look) | 0) % LOOKS.length;
       r.by = p.by || (typeof pr.uid === "string" ? pr.uid : null);
       r.isMe = p.isMe;
+      r.sit = typeof pr.sit === "string" ? pr.sit : null;
+      r.focus = typeof pr.focus === "number" ? pr.focus : null;
+      r.hold = typeof pr.hold === "string" && (drinkOf(pr.hold) || snackOf(pr.hold)) ? pr.hold : null; r.brewing = !!pr.brewing; r.cat = typeof pr.cat === "string" ? pr.cat : null;
       const say = pr.say;
       if (say && typeof say.t === "string" && say.at !== r.sayKey) {
         r.sayKey = say.at;
-        const text = say.t.slice(0, 80);
+        const text = clean(say.t, 80);
         if (r.sayInit) { r.say = text; r.sayAt = Date.now(); if (!S.db && !say.emo) pushChat(r.by, text, false); }
         else if (Date.now() - Number(say.at) < 7000) { r.say = text; r.sayAt = Date.now(); }
       }
@@ -1109,10 +1668,10 @@ function connectRoom(room){
     renderSide();
   }, () => { renderSide(); });
   room.onConnection(() => renderSide(), () => {});
-  sendPresence();
+  sendPresence(true);
 }
 function emote(i){
-  const e = EMOTES[i]; if (!e || !MAP.me) return;
+  const e = typeof i === "string" ? i : EMOTES[i]; if (!e || !MAP.me) return;
   MAP.me.say = e; MAP.me.sayAt = Date.now();
   if (S.room) S.room.presence({say:{t:e, at:Date.now(), emo:1}}).catch(() => {});
 }
@@ -1178,6 +1737,7 @@ function actLine(a){
 }
 function renderExtras(){
   const n = unread(), bn = $("#bellN"); if (bn) bn.textContent = n ? String(Math.min(n, 99)) : "";
+  const tc = $("#tbCount"), oc = $("#onlineCount"); if (tc && oc) tc.textContent = oc.textContent;
   const feed = $("#feed");
   if (feed) feed.innerHTML = S.acts.slice(0, 25).map(actLine).join("") || `<li class="note">ยังไม่มีความเคลื่อนไหว เพิ่มหรือปิดงานแล้วจะขึ้นที่นี่</li>`;
   const snip = $("#boardSnip");
@@ -1195,10 +1755,13 @@ function renderExtras(){
   }
 }
 
-/* chiptune lo-fi, generated in the browser */
-const MUSIC = {ctx:null, on:false, timer:0, step:0, next:0, master:null, vol:.5};
-const CHORDS = [[48,52,55,59],[45,48,52,55],[41,45,48,52],[43,47,50,55]];
-const ARP = [0,1,2,3,2,1,2,3];
+/* ---------- radio: generated music (production) ---------- */
+const TRACKS = [
+  {name:"โลไฟชิปทูน", bpm:82, chords:[[48,52,55,59],[45,48,52,55],[41,45,48,52],[43,47,50,55]], lead:"square", arp:[0,1,2,3,2,1,2,3], hat:true},
+  {name:"คาเฟ่แจ๊ส", bpm:72, chords:[[50,53,57,60],[43,47,50,53],[48,52,55,59],[45,49,52,55]], lead:"triangle", arp:[0,2,1,3,0,2,3,1], hat:true, swing:.18},
+  {name:"ฝนตกเบาๆ", bpm:60, chords:[[45,48,52,55],[41,45,48,52],[48,52,55,59],[43,47,50,55]], lead:"sine", arp:[3,-1,2,-1,1,-1,0,-1], rain:true},
+];
+const MUSIC = {ctx:null, on:false, timer:0, step:0, next:0, master:null, vol:.5, rain:null};
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 function note(type, freq, t, dur, gain, filt){
   const c = MUSIC.ctx, o = c.createOscillator(), g = c.createGain();
@@ -1208,25 +1771,35 @@ function note(type, freq, t, dur, gain, filt){
   if (filt) { const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = filt; o.connect(f); node = f; }
   node.connect(g); g.connect(MUSIC.master); o.start(t); o.stop(t + dur + .05);
 }
+function noiseBuf(sec){ const c = MUSIC.ctx, b = c.createBuffer(1, c.sampleRate * sec, c.sampleRate), d = b.getChannelData(0); for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1; return b; }
 function schedule(){
-  const c = MUSIC.ctx, spb = 60 / 82 / 2;
+  const c = MUSIC.ctx, tr = TRACKS[S.track], spb = 60 / tr.bpm / 2;
   while (MUSIC.next < c.currentTime + .15) {
-    const t = MUSIC.next, s = MUSIC.step, bar = Math.floor(s / 8) % 4, ch = CHORDS[bar], i = s % 8;
-    if (i === 0) ch.forEach(n => note("triangle", mtof(n), t, spb * 8.2, .05, 900));
-    if (i === 0 || i === 4) note("sine", mtof(ch[0] - 12), t, spb * 3, .16, 400);
-    if (i !== 7) note("square", mtof(ch[ARP[i]] + 12), t, spb * .9, .022, 2200);
-    if (i % 2 === 1) { const b = c.createBuffer(1, 2205, 44100), d = b.getChannelData(0); for (let j = 0; j < d.length; j++) d[j] = (Math.random()*2-1) * (1 - j/d.length); const src = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 6000; g.gain.value = .03; src.buffer = b; src.connect(f); f.connect(g); g.connect(MUSIC.master); src.start(t); }
+    const s = MUSIC.step, i = s % 8, t = MUSIC.next + (tr.swing && i % 2 ? spb * tr.swing : 0), ch = tr.chords[Math.floor(s / 8) % 4];
+    if (i === 0) ch.forEach(n => note("triangle", mtof(n), t, spb * 8.2, tr.rain ? .035 : .05, 900));
+    if (!tr.rain && (i === 0 || i === 4)) note("sine", mtof(ch[0] - 12), t, spb * 3, .16, 400);
+    const a = tr.arp[i]; if (a >= 0 && i !== 7) note(tr.lead, mtof(ch[a] + 12), t, spb * (tr.rain ? 2.5 : .9), tr.lead === "square" ? .02 : .04, 2400);
+    if (tr.hat && i % 2 === 1) { const src = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 6500; g.gain.setValueAtTime(.03, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05); src.buffer = MUSIC.hatBuf; src.connect(f); f.connect(g); g.connect(MUSIC.master); src.start(t); src.stop(t + .06); }
     MUSIC.next += spb; MUSIC.step++;
   }
 }
-function toggleMusic(){
+function startRain(on){
+  if (MUSIC.rain) { try { MUSIC.rain.stop(); } catch {} MUSIC.rain = null; }
+  if (!on) return;
+  const c = MUSIC.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = noiseBuf(3); src.loop = true; f.type = "lowpass"; f.frequency.value = 1400; g.gain.value = .06;
+  src.connect(f); f.connect(g); g.connect(MUSIC.master); src.start(); MUSIC.rain = src;
+}
+function setMusic(on, track){
   try {
-    if (!MUSIC.ctx) { MUSIC.ctx = new (window.AudioContext || window.webkitAudioContext)(); MUSIC.master = MUSIC.ctx.createGain(); MUSIC.master.connect(MUSIC.ctx.destination); }
-    MUSIC.on = !MUSIC.on;
-    if (MUSIC.on) { MUSIC.ctx.resume(); MUSIC.master.gain.setTargetAtTime(MUSIC.vol * .6, MUSIC.ctx.currentTime, .3); MUSIC.next = MUSIC.ctx.currentTime + .05; MUSIC.timer = setInterval(schedule, 30); }
-    else { MUSIC.master.gain.setTargetAtTime(0, MUSIC.ctx.currentTime, .15); clearInterval(MUSIC.timer); }
+    if (!MUSIC.ctx) { MUSIC.ctx = new (window.AudioContext || window.webkitAudioContext)(); MUSIC.master = MUSIC.ctx.createGain(); MUSIC.master.gain.value = 0; MUSIC.master.connect(MUSIC.ctx.destination); MUSIC.hatBuf = noiseBuf(.05); }
+    if (track != null) { S.track = track; MUSIC.step = 0; }
+    MUSIC.on = on;
+    clearInterval(MUSIC.timer);
+    if (on) { MUSIC.ctx.resume(); MUSIC.master.gain.setTargetAtTime(MUSIC.vol * .6, MUSIC.ctx.currentTime, .3); MUSIC.next = MUSIC.ctx.currentTime + .05; MUSIC.timer = setInterval(schedule, 30); startRain(!!TRACKS[S.track].rain); }
+    else { MUSIC.master.gain.setTargetAtTime(0, MUSIC.ctx.currentTime, .15); startRain(false); }
   } catch { toast("เบราว์เซอร์นี้เล่นเพลงไม่ได้"); MUSIC.on = false; }
-  const b = $("#music"); if (b) { b.setAttribute("aria-pressed", MUSIC.on); b.querySelector("span").textContent = MUSIC.on ? "เพลง: เปิด" : "เพลง: ปิด"; }
+  renderToolbar();
 }
 function setVol(v){ MUSIC.vol = v; if (MUSIC.ctx && MUSIC.on) MUSIC.master.gain.setTargetAtTime(v * .6, MUSIC.ctx.currentTime, .1); }
 
@@ -1491,7 +2064,17 @@ function summaryText(){
 document.addEventListener("click", e => {
   const t = e.target.closest("button, input[type=checkbox]");
   if (!t) return;
-  if (t.id === "music") return toggleMusic();
+  if (t.closest && t.closest(".dpad")) return;
+  if (t.id === "btnFocus") { if (S.focus) { S.focus = null; sendPresence(true); renderToolbar(); toast("หยุดโฟกัสแล้ว"); } else openModal({kind:"focus"}); return; }
+  if (t.id === "btnCats") return openModal({kind:"cats"});
+  if (t.id === "btnRadio") return openModal({kind:"radio"});
+  if (t.id === "btnVoice") return openModal({kind:"voice"});
+  if (t.id === "ttsToggle") { S.tts = !S.tts; if (S.tts) speak("เปิดเสียงอ่านแชทแล้ว"); else try { speechSynthesis.cancel(); } catch {} render(); renderToolbar(); return; }
+  if (t.dataset.drink) { const d = t.dataset.drink; closeModal(); brewCoffee(d); return; }
+  if (t.dataset.snack) { const d = t.dataset.snack; closeModal(); eatSnack(d); return; }
+  if (t.dataset.focus) return startFocus(+t.dataset.focus);
+  if (t.dataset.callcat) { callCat(t.dataset.callcat); render(); renderToolbar(); return; }
+  if (t.dataset.track) { if (t.dataset.track === "off") setMusic(false); else setMusic(true, +t.dataset.track); render(); return; }
   if (t.id === "bell") { S.openInbox = true; S.openRoom = null; S.openBoard = false; markSeen(); return render(); }
   if (t.id === "boardOpen") { S.openBoard = true; S.openRoom = null; S.openInbox = false; return render(); }
   if (t.dataset.emote) return emote(+t.dataset.emote);
@@ -1505,13 +2088,13 @@ document.addEventListener("click", e => {
   if (t.dataset.ai) return runAI(t.dataset.ai);
   if (t.id === "aiCopy") { const txt = ($("#aiOut") || {}).textContent || ""; if (!txt.trim()) return; try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); } return; }
   if (t.id === "prompt") return openNear();
-  if (t.id === "fs") { const st = $("#stage"); const on = !st.classList.contains("big"); st.classList.toggle("big", on); document.body.style.overflow = on ? "hidden" : ""; t.textContent = on ? "ย่อจอ" : "เต็มจอ"; sizeMap(); return; }
+  if (t.id === "fs") return toggleBig();
   if (t.dataset.dir) return;
   if (t.id === "tab-office") { S.view = "office"; S.openRoom = null; S.editing = false; return render(); }
   if (t.id === "tab-summary") { S.view = "summary"; return render(); }
   if (t.dataset.room) { S.openRoom = t.dataset.room; return render(); }
   if (t.id === "join") { S.editing = true; return render(); }
-  if (t.id === "back" || t.id === "mclose") { if (S.aiTask) { const back = S.aiFrom; S.aiTask = null; if (S.aiCtl2) S.aiCtl2.abort(); if (back && t.id === "back") { S.openRoom = back; return render(); } } S.editTask = null; S.openThread = null; S.openBoard = false; S.openInbox = false; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "back" || t.id === "mclose") { if (S.aiTask) { const back = S.aiFrom; S.aiTask = null; if (S.aiCtl2) S.aiCtl2.abort(); if (back && t.id === "back") { S.openRoom = back; return render(); } } S.editTask = null; S.openThread = null; S.openBoard = false; S.openInbox = false; S.openRoom = null; S.miniModal = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "edit") { S.openRoom = null; S.editing = true; S.setupLook = Number(myRoom().avatar)||0; S.setupDeco = decoOf(myRoom()); return render(); }
   if (t.id === "cancel") { S.editing = false; S.openRoom = null; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "moveok") { const to = S.moveTo; S.moveTo = null; saveMine(r => { r.desk = to; }); toast("ย้ายโต๊ะแล้ว"); return; }
@@ -1559,7 +2142,7 @@ function fallbackCopy(txt){
   try { document.execCommand("copy"); toast("คัดลอกแล้ว"); } catch { toast("คัดลอกไม่ได้ ลองเลือกข้อความเอง"); } ta.remove();
 }
 document.addEventListener("input", e => { if (e.target.id === "vol") setVol(+e.target.value); });
-document.addEventListener("pointerdown", e => { const b = e.target.closest(".dpad button"); if (b) { MAP.dpad = b.dataset.dir; MAP.target = null; b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); } });
+document.addEventListener("pointerdown", e => { const b = e.target.closest(".dpad button"); if (b) { MAP.dpad = b.dataset.dir; MAP.target = null; MAP.path = null; MAP.onArrive = null; b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); } });
 ["pointerup","pointercancel"].forEach(ev => document.addEventListener(ev, () => { MAP.dpad = null; }));
 document.addEventListener("submit", e => {
   e.preventDefault();
@@ -1664,7 +2247,9 @@ render();
     renderExtras(); if (S.openBoard && !document.querySelector("#boardForm")) render();
   }, () => {});
   db.collection("chat").orderBy("at", "desc").limit(60).onSnapshot(snap => {
+    const prevAt = S.chatReady && S.chat.length ? S.chat[S.chat.length - 1].at : Date.now();
     S.chat = snap.docs.map(d => d.data()).filter(m => m && typeof m.text === "string" && typeof m.at === "number").reverse();
+    if (S.tts && S.chatReady) S.chat.filter(m => m.at > prevAt && m.by !== S.myId).forEach(m => speak(`${m.by ? nameOf(m.by) : "ผู้มาเยือน"} บอกว่า ${m.text}`));
     S.chatReady = true; renderSide();
   }, () => {});
 })();
