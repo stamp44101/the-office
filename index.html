@@ -210,6 +210,15 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 .empty{padding:28px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;gap:6px;align-items:center}
 .empty b{font-family:var(--f-pixel);color:var(--accent);font-size:20px}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.task .edt{border:0;background:transparent;color:var(--muted);font-size:13px;padding:0 2px;line-height:1.5}
+.task .tn{display:block;font-size:12px;color:var(--muted);white-space:pre-wrap;margin-top:2px}
+.task.editing{flex-direction:column;align-items:stretch}
+.editform{display:flex;flex-direction:column;gap:6px}
+.editform .row{gap:6px}
+.editform textarea{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 9px;font:inherit;font-size:13px;resize:vertical;min-height:52px}
+.archived-note{font-size:12px;color:var(--muted)}
+#chatlog li .day{font-size:11px;color:var(--muted);grid-column:1 / -1;text-align:center;margin:4px 0 0}
+.chatbar input:disabled{opacity:.6}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:520px){.brand h1{font-size:23px}.panel{padding:14px}}
 </style>
@@ -392,24 +401,80 @@ const nameOf = id => (S.profiles[id] && S.profiles[id].name) || (id === S.myId ?
 const avatarOf = id => (S.profiles[id] && S.profiles[id].avatarUrl) || "";
 const myRoom = () => S.rooms.find(r => r.id === S.myId);
 
+/* ---------- data: rooms hold profile/clients/desk; tasks live in their own collection ---------- */
+// S.rawRooms: room docs as stored (legacy rooms may still carry a `tasks` array → kept as legacyTasks)
+// S.taskDocs: docs from the `tasks` collection. r.tasks is derived (never written back to a room).
+S.rawRooms = []; S.taskDocs = []; S.chat = []; S.migrated = false;
+const ARCHIVE_DAYS = 30;
+const archiveCut = (() => { const d = new Date(); d.setDate(d.getDate() - ARCHIVE_DAYS); return d.toISOString(); })();
+const isArchived = t => t.done && t.doneAt && t.doneAt < archiveCut;
+function mergeTasks(){
+  S.rooms = S.rawRooms.map(r => {
+    const own = S.taskDocs.filter(t => t.owner === r.id);
+    const ids = new Set(own.map(t => t.id));
+    const legacy = (r.legacyTasks || []).filter(t => t && t.id && !ids.has(t.id)).map(t => Object.assign({owner:r.id}, t));
+    return Object.assign({}, r, {tasks:[...own, ...legacy]});
+  });
+}
+function writeErr(e){
+  if (e && e.code === "invalid_argument") { S.readOnly = true; toast("ยังไม่มีสิทธิ์แก้ไข ขอให้เจ้าของออฟฟิศแชร์ให้แบบ Contributor ขึ้นไป"); }
+  else if (e && e.code === "quota_exceeded") toast("พื้นที่เก็บข้อมูลเต็ม ลองลบงานเก่าที่ไม่ใช้แล้ว");
+  else toast("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+  render();
+}
+
 /* ---------- saving (one write at a time) ---------- */
 let chain = Promise.resolve();
 function saveMine(mutator){
-  const cur = myRoom();
+  const cur = S.rawRooms.find(r => r.id === S.myId);
   const next = JSON.parse(JSON.stringify(cur || {}));
   mutator(next);
   next.updatedAt = new Date().toISOString();
-  const i = S.rooms.findIndex(r => r.id === S.myId);
+  const i = S.rawRooms.findIndex(r => r.id === S.myId);
   const local = Object.assign({id:S.myId}, next);
-  if (i >= 0) S.rooms[i] = local; else S.rooms.push(local);
-  render();
-  const body = Object.assign({}, next); delete body.id;
-  chain = chain.then(() => S.db.doc("rooms/" + S.myId).set(body)).catch(e => {
-    if (e && e.code === "invalid_argument") { S.readOnly = true; toast("ยังไม่มีสิทธิ์แก้ไข ขอให้เจ้าของออฟฟิศแชร์ให้แบบ Editor"); }
-    else if (e && e.code === "quota_exceeded") toast("พื้นที่เก็บข้อมูลเต็ม ลองลบงานที่เสร็จนานแล้วออก");
-    else toast("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
-    render();
-  });
+  if (i >= 0) S.rawRooms[i] = local; else S.rawRooms.push(local);
+  mergeTasks(); render();
+  const body = Object.assign({}, next); delete body.id; delete body.tasks; delete body.legacyTasks;
+  // until migration finishes, keep the legacy array in the doc so nothing is lost
+  if (S.migrated !== true && cur && cur.legacyTasks && cur.legacyTasks.length) body.tasks = cur.legacyTasks;
+  chain = chain.then(() => S.db.doc("rooms/" + S.myId).set(body)).catch(writeErr);
+}
+// tasks: optimistic local change, then one queued write
+function saveTask(id, patch){
+  const i = S.taskDocs.findIndex(t => t.id === id);
+  let body;
+  if (i >= 0) { body = Object.assign({}, S.taskDocs[i], patch); S.taskDocs[i] = body; }
+  else { const leg = (myRoom() && myRoom().tasks || []).find(t => t.id === id); body = Object.assign({owner:S.myId}, leg || {}, patch, {id}); S.taskDocs.push(body); }
+  body.updatedAt = new Date().toISOString();
+  mergeTasks(); render();
+  const data = Object.assign({}, body); delete data.id;
+  chain = chain.then(() => S.db.collection("tasks").doc(id).set(data)).catch(writeErr);
+}
+function deleteTasks(ids){
+  const set = new Set(ids);
+  S.taskDocs = S.taskDocs.filter(t => !set.has(t.id));
+  const raw = S.rawRooms.find(r => r.id === S.myId);
+  if (raw && raw.legacyTasks) raw.legacyTasks = raw.legacyTasks.filter(t => !set.has(t.id));
+  mergeTasks(); render();
+  ids.forEach(id => { chain = chain.then(() => S.db.collection("tasks").doc(id).delete()).catch(writeErr); });
+}
+// one-time move of my legacy room.tasks array into the tasks collection
+async function migrateMine(){
+  if (S.migrated || S.readOnly || !S.myId) return;
+  const raw = S.rawRooms.find(r => r.id === S.myId);
+  if (!raw) return;
+  const legacy = (raw.legacyTasks || []).filter(t => t && t.id);
+  if (!legacy.length) { S.migrated = true; return; }
+  S.migrated = "running";
+  try {
+    for (const t of legacy) {
+      const data = Object.assign({}, t, {owner:S.myId}); delete data.id;
+      await S.db.collection("tasks").doc(t.id).set(data);
+    }
+    S.migrated = true;
+    raw.legacyTasks = [];
+    saveMine(() => {}); // rewrites the room doc without the old array
+  } catch (e) { S.migrated = false; }
 }
 let toastT;
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
@@ -858,7 +923,7 @@ function connectRoom(room){
       if (say && typeof say.t === "string" && say.at !== r.sayKey) {
         r.sayKey = say.at;
         const text = say.t.slice(0, 80);
-        if (r.sayInit) { r.say = text; r.sayAt = Date.now(); pushChat(r.by, text, false); }
+        if (r.sayInit) { r.say = text; r.sayAt = Date.now(); if (!S.db) pushChat(r.by, text, false); }
         else if (Date.now() - Number(say.at) < 7000) { r.say = text; r.sayAt = Date.now(); }
       }
       r.sayInit = true;
@@ -879,8 +944,26 @@ function say(text){
   text = String(text).replace(new RegExp("[\\u0000-\\u001f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]", "g"), "").trim().slice(0, 80);
   if (!text) return;
   MAP.me.say = text; MAP.me.sayAt = Date.now();
-  pushChat(S.myId, text, true);
+  if (S.db && !S.readOnly) {
+    const at = Date.now();
+    S.chat.push({by:S.myId || null, text, at}); renderSide();
+    chain = chain.then(() => S.db.collection("chat").add({by:S.myId || null, text, at})).catch(writeErr);
+    pruneChat();
+  } else pushChat(S.myId, text, true);
   if (S.room) S.room.presence({say:{t:text, at:Date.now()}}).catch(() => toast("ส่งข้อความไม่สำเร็จ"));
+}
+// keep chat bounded: drop messages older than 14 days, once per visit
+let pruned = false;
+function pruneChat(){
+  if (pruned || !S.db) return; pruned = true;
+  const cut = Date.now() - 14 * 864e5;
+  S.db.collection("chat").where("at", "<", cut).limit(100).get()
+    .then(snap => snap.docs.forEach(d => { chain = chain.then(() => S.db.collection("chat").doc(d.id).delete()).catch(() => {}); }))
+    .catch(() => {});
+}
+function chatItems(){
+  if (S.db && S.chatReady) return S.chat.map(m => ({by:m.by, text:m.text, at:m.at, mine: !!S.myId && m.by === S.myId}));
+  return MAP.chat;
 }
 function renderSide(){
   const on = $("#online"), log = $("#chatlog"); if (!on || !log) return;
@@ -895,7 +978,15 @@ function renderSide(){
     return `<li>${av ? `<img alt="" src="${esc(av)}">` : `<span class="dot-av"></span>`}<span>${esc(nm)}</span><i class="live"></i></li>`;
   }).join("");
   $("#connState").textContent = S.room ? (conn ? "ออนไลน์" : "กำลังเชื่อมต่อ…") : "เล่นคนเดียว";
-  log.innerHTML = MAP.chat.length ? MAP.chat.slice(-30).map(m => `<li class="${m.mine ? "mine" : ""}"><b>${esc(m.mine ? "คุณ" : (m.by ? nameOf(m.by) : "ผู้มาเยือน"))}</b><span>${esc(m.text)}</span><time>${new Date(m.at).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"})}</time></li>`).join("") : `<li class="note">ยังไม่มีข้อความ พิมพ์ทักเพื่อนได้เลย ข้อความจะลอยเหนือหัวตัวละคร 7 วินาที</li>`;
+  const items = chatItems().slice(-60); let lastDay = "";
+  log.innerHTML = items.length ? items.map(m => {
+    const d = new Date(m.at), day = ymd(d);
+    const sep = day !== lastDay ? `<li><span class="day">${day === TODAY ? "วันนี้" : esc(d.toLocaleDateString("th-TH", {weekday:"short", day:"numeric", month:"short"}))}</span></li>` : "";
+    lastDay = day;
+    return sep + `<li class="${m.mine ? "mine" : ""}"><b>${esc(m.mine ? "คุณ" : (m.by ? nameOf(m.by) : "ผู้มาเยือน"))}</b><span>${esc(m.text)}</span><time>${d.toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"})}</time></li>`;
+  }).join("") : `<li class="note">ยังไม่มีข้อความ พิมพ์ทักเพื่อนได้เลย ข้อความเก็บไว้ 14 วัน และลอยเหนือหัวตัวละคร 7 วินาที</li>`;
+  const sayIn = $("#say"); if (sayIn) { const ro = !!(S.db && S.readOnly); sayIn.disabled = ro; if (ro) sayIn.placeholder = "ดูได้อย่างเดียว ส่งข้อความไม่ได้"; }
+  if (S.user && items.length) { const miss = [...new Set(items.map(m => m.by).filter(id => id && !S.profiles[id] && !(S.tried = S.tried || new Set()).has(id)))]; if (miss.length && !S.fetchingProfiles) { S.fetchingProfiles = true; miss.forEach(id => S.tried.add(id)); S.user.profiles(miss).then(ps => { Object.assign(S.profiles, ps); S.fetchingProfiles = false; renderSide(); }, () => { S.fetchingProfiles = false; }); } }
   log.scrollTop = log.scrollHeight;
 }
 
@@ -978,15 +1069,24 @@ function renderRoom(m, r){
   const cols = (r.clients || []).map(c => {
     const all = (r.tasks || []).filter(t => t.clientId === c.id);
     const open = all.filter(t => !t.done).sort((a,b) => (a.due||"9999").localeCompare(b.due||"9999"));
-    const done = all.filter(t => t.done).sort((a,b) => (b.doneAt||"").localeCompare(a.doneAt||""));
-    const li = t => { const d = dueInfo(t); return `<li class="task${t.done ? " done" : ""}">
+    const doneAll = all.filter(t => t.done).sort((a,b) => (b.doneAt||"").localeCompare(a.doneAt||""));
+    const done = doneAll.filter(t => !isArchived(t)), archived = doneAll.length - done.length;
+    const li = t => {
+      if (mine && S.editTask === t.id) return `<li class="task editing"><form class="editform" data-edittask="${esc(t.id)}">
+        <input type="text" name="title" maxlength="140" required value="${esc(t.title)}" aria-label="ชื่องาน">
+        <div class="row"><input type="date" name="due" value="${esc(t.due || "")}" aria-label="กำหนดส่ง"></div>
+        <textarea name="note" maxlength="600" placeholder="โน้ต / รายละเอียด (ไม่บังคับ)" aria-label="โน้ต">${esc(t.note || "")}</textarea>
+        <div class="row"><button class="btn primary" type="submit">บันทึก</button><button class="btn ghost" type="button" data-canceledit="1">ยกเลิก</button></div>
+      </form></li>`;
+      const d = dueInfo(t); return `<li class="task${t.done ? " done" : ""}">
         <input type="checkbox" data-toggle="${esc(t.id)}" ${t.done ? "checked" : ""} ${mine ? "" : "disabled"} aria-label="ทำเสร็จแล้ว">
-        <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}</span>
-        ${mine ? `<button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`; };
+        <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}${t.note ? `<span class="tn">${esc(t.note)}</span>` : ""}</span>
+        ${mine ? `<button class="edt" data-edit="${esc(t.id)}" aria-label="แก้ไขงาน">✎</button><button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`; };
     return `<section class="col">
       <div class="col-head"><h3>${esc(c.name)}</h3><span class="n">${open.length}</span>${mine ? `<button class="x" data-rmclient="${esc(c.id)}" aria-label="ลบลูกค้า ${esc(c.name)}">×</button>` : ""}</div>
       <ul class="tasks">${open.map(li).join("") || `<li class="note">ไม่มีงานค้าง</li>`}</ul>
       ${done.length ? `<details><summary>เสร็จแล้ว ${done.length}</summary><ul class="tasks" style="margin-top:6px">${done.slice(0,20).map(li).join("")}</ul></details>` : ""}
+      ${archived ? `<span class="archived-note">เก็บเข้าคลังแล้ว ${archived} งาน (เสร็จเกิน ${ARCHIVE_DAYS} วัน)</span>` : ""}
       ${mine ? `<form class="addform" data-add="${esc(c.id)}"><input type="text" id="t-${esc(c.id)}" placeholder="เพิ่มงาน…" maxlength="140" required><input type="date" id="d-${esc(c.id)}" aria-label="กำหนดส่ง"><button class="btn primary" type="submit">เพิ่ม</button></form>` : ""}
     </section>`;
   }).join("");
@@ -1062,7 +1162,7 @@ document.addEventListener("click", e => {
   if (t.id === "tab-summary") { S.view = "summary"; return render(); }
   if (t.dataset.room) { S.openRoom = t.dataset.room; return render(); }
   if (t.id === "join") { S.editing = true; return render(); }
-  if (t.id === "back" || t.id === "mclose") { S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "back" || t.id === "mclose") { S.editTask = null; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "edit") { S.openRoom = null; S.editing = true; S.setupLook = Number(myRoom().avatar)||0; S.setupDeco = decoOf(myRoom()); return render(); }
   if (t.id === "cancel") { S.editing = false; S.openRoom = null; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "moveok") { const to = S.moveTo; S.moveTo = null; saveMine(r => { r.desk = to; }); toast("ย้ายโต๊ะแล้ว"); return; }
@@ -1079,12 +1179,22 @@ document.addEventListener("click", e => {
     try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว วางในแชทได้เลย"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); }
     return;
   }
-  if (t.dataset.toggle) { const id = t.dataset.toggle; return saveMine(r => { const k = r.tasks.find(x => x.id === id); if (k) { k.done = !k.done; k.doneAt = k.done ? new Date().toISOString() : null; } }); }
-  if (t.dataset.del) { const id = t.dataset.del; return saveMine(r => { r.tasks = r.tasks.filter(x => x.id !== id); }); }
+  if (t.dataset.toggle) {
+    const id = t.dataset.toggle, k = ((myRoom() || {}).tasks || []).find(x => x.id === id); if (!k) return;
+    const done = !k.done; return saveTask(id, {done, doneAt: done ? new Date().toISOString() : null});
+  }
+  if (t.dataset.edit) { S.editTask = t.dataset.edit; render(); const i = document.querySelector(".editform input[name=title]"); if (i) i.focus(); return; }
+  if (t.dataset.canceledit) { S.editTask = null; return render(); }
+  if (t.dataset.del) {
+    if (t.dataset.armed !== "1") { t.dataset.armed = "1"; t.textContent = "ลบ?"; setTimeout(() => { t.dataset.armed = ""; t.textContent = "×"; }, 2500); return; }
+    return deleteTasks([t.dataset.del]);
+  }
   if (t.dataset.rmclient) {
     const id = t.dataset.rmclient;
     if (t.dataset.armed !== "1") { t.dataset.armed = "1"; t.textContent = "ลบ?"; setTimeout(() => { t.dataset.armed = ""; t.textContent = "×"; }, 2500); return; }
-    return saveMine(r => { r.clients = r.clients.filter(c => c.id !== id); r.tasks = r.tasks.filter(x => x.clientId !== id); });
+    const ids = ((myRoom() || {}).tasks || []).filter(x => x.clientId === id).map(x => x.id);
+    saveMine(r => { r.clients = r.clients.filter(c => c.id !== id); });
+    return deleteTasks(ids);
   }
 });
 function fallbackCopy(txt){
@@ -1103,18 +1213,25 @@ document.addEventListener("submit", e => {
     const newClients = $("#f-clients").value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
     const isNew = !myRoom();
     saveMine(r => {
-      if (isNew) { r.joinedAt = new Date().toISOString(); r.clients = []; r.tasks = []; r.desk = S.setupDesk; }
+      if (isNew) { r.joinedAt = new Date().toISOString(); r.clients = []; r.desk = S.setupDesk; }
       r.roomName = name; r.avatar = S.setupLook; r.deco = Object.assign({}, S.setupDeco || DEFAULT_DECO);
       newClients.forEach(n => { if (!r.clients.some(c => c.name.toLowerCase() === n.toLowerCase())) r.clients.push({id:uid(), name:n}); });
     });
     S.editing = false; S.setupDesk = null; S.openRoom = S.myId; toast(isNew ? "จองโต๊ะแล้ว ยินดีต้อนรับเข้าออฟฟิศ" : "บันทึกแล้ว"); return render();
+  }
+  if (f.dataset.edittask) {
+    const id = f.dataset.edittask, title = f.elements.title.value.trim();
+    if (!title) return;
+    S.editTask = null;
+    saveTask(id, {title, due: f.elements.due.value || null, note: f.elements.note.value.trim().slice(0, 600)});
+    return;
   }
   if (f.dataset.add) {
     const cid = f.dataset.add;
     const title = f.querySelector("input[type=text]").value.trim();
     const due = f.querySelector("input[type=date]").value || null;
     if (!title) return;
-    saveMine(r => { r.tasks = r.tasks || []; r.tasks.push({id:uid(), clientId:cid, title, due, done:false, doneAt:null, createdAt:new Date().toISOString()}); });
+    saveTask(uid() + uid(), {owner:S.myId, clientId:cid, title, due, note:"", done:false, doneAt:null, createdAt:new Date().toISOString()});
     setTimeout(() => { const i = document.getElementById("t-" + cid); if (i) i.focus(); }, 0);
   }
 });
@@ -1129,18 +1246,34 @@ render();
   S.db = db; S.user = user;
   S.myId = user ? await user.id() : null;
   if (user) { const w = await user.can("data.write"); if (w === false) S.readOnly = true; }
+  // keep typing intact: don't re-render while an input is focused
+  const softRender = () => {
+    const a = document.activeElement;
+    if (a && a.matches && a.matches(".addform input, #setup input, #say, .editform input, .editform textarea")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
+    render();
+  };
   db.collection("rooms").onSnapshot(async snap => {
-    S.rooms = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+    S.rawRooms = snap.docs.map(d => {
+      const data = Object.assign({}, d.data()); const legacy = Array.isArray(data.tasks) ? data.tasks : [];
+      delete data.tasks; return Object.assign({id:d.id}, data, {legacyTasks:legacy});
+    });
+    mergeTasks();
     S.ready = true;
     if (user) {
       const ids = S.rooms.map(r => r.id); if (S.myId) ids.push(S.myId);
       try { S.profiles = await user.profiles(ids); } catch {}
     }
-    // keep typing intact: don't re-render while an add-task input is focused
-    const a = document.activeElement;
-    if (a && a.matches && a.matches(".addform input, #setup input, #say")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
-    render();
+    softRender();
+    migrateMine();
   }, err => { S.ready = true; toast("เชื่อมต่อออฟฟิศไม่ได้ ลองเปิดหน้าใหม่"); render(); });
+  db.collection("tasks").onSnapshot(snap => {
+    S.taskDocs = snap.docs.map(d => Object.assign({}, d.data(), {id:d.id})).filter(t => typeof t.owner === "string" && typeof t.title === "string");
+    mergeTasks(); softRender();
+  }, () => toast("โหลดงานไม่สำเร็จ ลองเปิดหน้าใหม่"));
+  db.collection("chat").orderBy("at", "desc").limit(60).onSnapshot(snap => {
+    S.chat = snap.docs.map(d => d.data()).filter(m => m && typeof m.text === "string" && typeof m.at === "number").reverse();
+    S.chatReady = true; renderSide();
+  }, () => {});
 })();
 })();
 </script>
