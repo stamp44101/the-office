@@ -1,0 +1,1148 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ออฟฟิศพิกเซล (Copy)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
+<style>
+/* Layout: top-down office floor — a grid of rooms (one per person), each room opens into client columns; a daily-summary tab rolls everything up */
+:root{
+  --bg:#e8f4ff; --panel:#ffffff; --ink:#1f2a44; --muted:#5a6785; --line:#cfe0f5;
+  --accent:#ff4f9a; --accent2:#13c4ae; --accent-ink:#ffffff; --amber:#ffae1a; --danger:#ff4757; --blue:#4c7dff;
+  --wall:#36407a; --wallTop:#8fd3ff; --desk:#ff8f4f; --deskTop:#ffbd6b; --screen:#5ef0d2;
+  --wood:#ffd28c; --woodB:#f2b763; --chair:#6c63ff; --sofa:#7b5cff; --rug:#13c4ae; --leaf:#2ecc71;
+  --tile:#ffffff; --tileAlt:#f2f7ff; --tileLine:#dce8fb;
+  --shadow:0 2px 0 rgba(54,64,122,.08),0 10px 24px -14px rgba(54,64,122,.45);
+  --f-pixel:"Pixelify Sans","IBM Plex Sans Thai",ui-monospace,monospace;
+  --f-body:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif;
+  color-scheme:light;
+}
+/* the game is a deliberate single bright world */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(31,42,68,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));overflow:auto}
+.modal-card{position:relative;width:min(980px,100%);margin:auto 0}
+.modal-card > div > .panel{border:3px solid var(--wall);box-shadow:0 6px 0 var(--wall)}
+.modal-x{position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:50%;border:2px solid var(--wall);background:var(--panel);font-size:20px;line-height:1;font-weight:700;color:var(--wall)}
+.setup{max-width:none}
+.setup .who{padding-right:40px}
+.deco{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;background:var(--bg);border-radius:12px;padding:12px}
+#deskPreview{width:240px;height:192px;max-width:100%;image-rendering:pixelated;border-radius:10px;border:3px solid var(--wall);flex:none}
+.deco-opts{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.dchip{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 11px;font-size:13px;font-weight:600}
+.dchip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:#fff}
+.swatch{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{border-color:var(--wall);box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
+
+.game{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (min-width:1080px){.game{grid-template-columns:minmax(0,1fr) 280px}}
+.stage{display:flex;flex-direction:column;gap:8px;min-width:0}
+.mapwrap{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:4px solid var(--wall);background:var(--wallTop);align-self:stretch;display:flex;justify-content:center}
+#map{display:block;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.tb-title{font-family:var(--f-pixel);font-weight:700;font-size:18px;color:var(--wall);letter-spacing:.04em}
+.tb-on{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.tb-on .live{margin:0}
+.hud{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.stage.big{position:fixed;inset:0;z-index:30;background:var(--bg);padding:calc(8px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));overflow:auto}
+.stage.big .keys{display:none}
+@media (max-height:520px){.stats,.today,.eyebrow{display:none}.brand h1{font-size:18px}.wrap{padding-block:10px 30px;gap:10px}}
+
+.hud button,.hud label{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--wall);background:var(--panel);color:var(--ink);border-radius:999px;padding:3px 11px;font-size:13px;font-weight:700;box-shadow:0 2px 0 var(--wall)}
+.hud button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.hud input[type=range]{width:70px;accent-color:var(--accent)}
+.hud svg{width:14px;height:14px}
+.prompt{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);border:2px solid var(--wall);background:var(--amber);color:var(--ink);font-weight:700;font-size:13px;padding:5px 14px;border-radius:999px;box-shadow:0 3px 0 var(--wall);white-space:nowrap;max-width:calc(100% - 140px);overflow:hidden;text-overflow:ellipsis}
+.dpad{position:absolute;left:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:3px;opacity:.88}
+.dpad button{border:2px solid var(--wall);background:var(--panel);border-radius:9px;font-size:16px;font-weight:700;color:var(--wall);touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 2px 0 var(--wall);padding:0}
+.dpad button:active{background:var(--accent2);color:#fff}
+@media (hover:hover) and (pointer:fine){.dpad{display:none}}
+.chatbar{display:flex;gap:8px}
+.chatbar input{flex:1;min-width:0;border:2px solid var(--wall);border-radius:12px;padding:9px 14px;font-size:15px;background:var(--panel)}
+.chatbar button{border:2px solid var(--wall);background:var(--accent);color:#fff;border-radius:12px;font-weight:700;padding:0 18px;box-shadow:0 3px 0 var(--wall)}
+.keys{font-size:12px;color:var(--muted)}
+.keys kbd{font-family:var(--f-pixel);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel);color:var(--ink)}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font-size:15px;display:flex;align-items:center;gap:8px}
+.card h3 small{margin-left:auto;font-size:12px;color:var(--accent2);font-weight:700}
+.count{font-family:var(--f-pixel);background:var(--accent2);color:#fff;border-radius:6px;padding:0 7px;font-size:13px}
+#online{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}
+#online li{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+#online li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#online img,.dot-av{width:22px;height:22px;border-radius:50%;flex:none;background:var(--wallTop)}
+.live{width:8px;height:8px;border-radius:50%;background:#2ecc71;margin-left:auto;flex:none;box-shadow:0 0 0 3px rgba(46,204,113,.2)}
+#chatlog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;font-size:14px}
+#chatlog li{display:grid;grid-template-columns:auto 1fr;gap:0 6px;align-items:baseline;min-width:0}
+#chatlog li b{color:var(--blue);font-size:13px}
+#chatlog li.mine b{color:var(--accent)}
+#chatlog li span{overflow-wrap:anywhere;min-width:0}
+#chatlog li time{grid-column:2;font-size:11px;color:var(--muted)}
+.hint{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;color:var(--muted);font-size:13px}
+.hint i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1480px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font-family:var(--f-pixel);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.brand h1{font-size:28px;font-weight:700}
+.today{color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{border:0;background:transparent;padding:7px 14px;border-radius:7px;font-weight:600;color:var(--muted)}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+/* stats */
+.stats{display:flex;flex-wrap:wrap;gap:10px}
+.stat{flex:1 1 140px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;align-items:baseline;gap:10px}
+.stat b{font-family:var(--f-pixel);font-size:26px;font-variant-numeric:tabular-nums;line-height:1}
+.stat span{color:var(--muted);font-size:13px}
+.stat.warn b{color:var(--amber)} .stat.bad b{color:var(--danger)}
+
+/* office floor */
+.floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.room{position:relative;border:0;padding:0;text-align:left;border-radius:6px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow);display:flex;flex-direction:column;transition:transform .15s}
+.room:hover{transform:translateY(-2px)}
+.room.mine{outline:2px solid var(--accent);outline-offset:-2px}
+.scene{position:relative;height:150px;border-top:10px solid var(--wall);
+  background-color:var(--floorA);
+  background-image:linear-gradient(45deg,var(--floorB) 25%,transparent 25%,transparent 75%,var(--floorB) 75%),linear-gradient(45deg,var(--floorB) 25%,transparent 25%,transparent 75%,var(--floorB) 75%);
+  background-size:24px 24px;background-position:0 0,12px 12px}
+.door{position:absolute;top:-10px;right:22px;width:30px;height:10px;background:var(--floorA)}
+.desk{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:120px;height:34px;background:var(--desk);border-radius:3px;box-shadow:inset 0 6px 0 var(--deskTop)}
+.monitor{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);width:34px;height:22px;background:var(--wall);border-radius:2px;padding:3px}
+.monitor i{display:block;width:100%;height:100%;background:var(--screen)}
+.room.busy .monitor i{animation:blink 1.4s steps(2) infinite}
+@keyframes blink{50%{opacity:.55}}
+.sprite{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);image-rendering:pixelated;width:40px;height:48px;z-index:0}
+.desk,.monitor{z-index:1}
+.room.busy .sprite{animation:bob .6s steps(2) infinite}
+@keyframes bob{50%{transform:translate(-50%,-2px)}}
+.room.idle .sprite{left:24%}
+.plant{position:absolute;left:12px;bottom:14px;width:16px;height:26px}
+.plant::before{content:"";position:absolute;bottom:0;left:2px;width:12px;height:9px;background:var(--desk)}
+.plant::after{content:"";position:absolute;bottom:8px;left:0;width:16px;height:16px;background:var(--accent);border-radius:50% 50% 40% 40%}
+.mug{position:absolute;bottom:58px;left:calc(24% + 26px);width:9px;height:9px;background:var(--panel);border:2px solid var(--wall);border-radius:0 0 2px 2px}
+.bubble{position:absolute;top:10px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--panel);color:var(--ink);border:2px solid var(--wall);border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600;z-index:2}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-5px;border:5px solid transparent;border-top-color:var(--wall);border-bottom:0}
+.bubble.bad{border-color:var(--danger);color:var(--danger)} .bubble.bad::after{border-top-color:var(--danger)}
+.plate{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.plate-head{display:flex;align-items:center;gap:8px;min-width:0}
+.plate-head img{width:22px;height:22px;border-radius:50%;flex:none}
+.plate-head strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plate-head small{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+.chip.bad b{color:var(--danger)}
+.vacant{border:2px dashed var(--line);background:transparent;box-shadow:none;align-items:center;justify-content:center;min-height:230px;color:var(--muted);gap:6px;padding:16px;text-align:center}
+.vacant b{font-family:var(--f-pixel);font-size:30px;color:var(--accent);line-height:1}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow)}
+.panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.panel-head canvas{image-rendering:pixelated;width:40px;height:48px;background:var(--floorA);border-radius:6px;padding:4px;box-sizing:content-box}
+.panel-head .who{display:flex;flex-direction:column;min-width:0}
+.panel-head .who h2{font-size:20px}
+.panel-head .who span{color:var(--muted);font-size:13px}
+.panel-head .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.col{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.col-head{display:flex;align-items:center;gap:8px}
+.col-head h3{font-size:15px;min-width:0;overflow-wrap:anywhere}
+.col-head .n{margin-left:auto;font-family:var(--f-pixel);font-size:14px;color:var(--muted)}
+.col-head .x{border:0;background:transparent;color:var(--muted);padding:0 4px;font-size:16px}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.task{display:flex;align-items:flex-start;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 8px}
+.task input[type=checkbox]{margin-top:4px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.task .t{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}
+.task.done .t{text-decoration:line-through;color:var(--muted)}
+.task .del{border:0;background:transparent;color:var(--muted);font-size:15px;padding:0 2px;line-height:1.4}
+.due{display:inline-block;font-size:11px;font-weight:600;padding:0 6px;border-radius:4px;margin-left:4px;background:var(--bg);color:var(--muted);white-space:nowrap}
+.due.today{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
+.due.late{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}
+.addform{display:flex;flex-wrap:wrap;gap:6px}
+.addform input[type=text]{flex:1 1 140px;min-width:0}
+input[type=text],input[type=date]{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 9px;font-size:14px}
+input[type=date]{flex:0 1 140px;min-width:0}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+.muted{color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+
+/* setup */
+.setup{max-width:620px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field .lab{font-weight:600;font-size:14px}
+.picks{display:flex;flex-wrap:wrap;gap:8px}
+.pick{border:2px solid var(--line);background:var(--floorA);border-radius:8px;padding:6px}
+.pick[aria-pressed="true"]{border-color:var(--accent)}
+.pick canvas{display:block;image-rendering:pixelated;width:40px;height:48px}
+.pick{background:var(--wallTop)}
+
+/* summary */
+.sumbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-weight:600;color:var(--muted);font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.group{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.group-head{display:flex;align-items:center;gap:8px;min-width:0}
+.group-head img{width:22px;height:22px;border-radius:50%}
+.group-head h3{font-size:16px;min-width:0;overflow-wrap:anywhere}
+.group-head .counts{margin-left:auto;display:flex;gap:6px;flex:none}
+.pill{font-size:12px;font-weight:600;padding:0 7px;border-radius:999px;background:var(--bg);color:var(--muted);font-variant-numeric:tabular-nums}
+.pill.bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent)}
+.pill.warn{color:var(--amber);background:color-mix(in srgb,var(--amber) 16%,transparent)}
+.pill.ok{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.lines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.lines li{display:flex;gap:6px;align-items:baseline;min-width:0}
+.lines li .t{min-width:0;overflow-wrap:anywhere}
+.lines .tag{flex:none;font-size:12px;color:var(--muted)}
+.empty{padding:28px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.empty b{font-family:var(--f-pixel);color:var(--accent);font-size:20px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:520px){.brand h1{font-size:23px}.panel{padding:14px}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Pixel Office</span>
+      <h1>ออฟฟิศพิกเซล</h1>
+      <span class="today" id="today"></span>
+    </div>
+    <nav class="tabs" aria-label="มุมมอง">
+      <button id="tab-office" aria-pressed="true">ออฟฟิศ</button>
+      <button id="tab-summary" aria-pressed="false">สรุปวันนี้</button>
+    </nav>
+  </header>
+  <section class="stats" id="stats" aria-label="ภาพรวม"></section>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const TODAY = ymd(new Date());
+const thDate = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d).toLocaleDateString("th-TH", {day:"numeric", month:"short"}); };
+$("#today").textContent = new Date().toLocaleDateString("th-TH", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+function dueInfo(t){
+  if (!t.due) return {cls:"", label:"ไม่มีกำหนด"};
+  if (t.due < TODAY) return {cls:"late", label:"เลยกำหนด " + thDate(t.due)};
+  if (t.due === TODAY) return {cls:"today", label:"วันนี้"};
+  return {cls:"", label:thDate(t.due)};
+}
+
+/* ---------- pixel characters ---------- */
+const SPRITE = [
+  "..HHHHHH..",
+  ".HHHHHHHH.",
+  ".HSSSSSSH.",
+  ".SSESSESS.",
+  ".SSSSSSSS.",
+  "..SSMMSS..",
+  "..TTTTTT..",
+  ".TTTTTTTT.",
+  "STTTTTTTTS",
+  "S.TTTTTT.S",
+  "..PPPPPP..",
+  "..KK..KK..",
+];
+const SPRITE_F = [
+  "..HHHHHB..",
+  ".HHHHHHHH.",
+  "HHSSSSSSHH",
+  "HSSESSESSH",
+  "HSSSSSSSSH",
+  "HHSSMMSSHH",
+  "H.TTTTTT.H",
+  ".TTTTTTTT.",
+  "STTTTTTTTS",
+  "S.TTTTTT.S",
+  ".PPPPPPPP.",
+  "..KK..KK..",
+];
+const BACK_F = [
+  "..HHHHHB..",
+  ".HHHHHHHH.",
+  "HHHHHHHHHH",
+  "HHHHHHHHHH",
+  "HHHHHHHHHH",
+  "HHHHHHHHHH",
+  ".HHHHHHHH.",
+  ".TTTTTTTT.",
+  "STTTTTTTTS",
+  "S.TTTTTT.S",
+  ".PPPPPPPP.",
+  "..KK..KK..",
+];
+const SIDE_F = [
+  "..HHHHHB..",
+  ".HHHHHHHH.",
+  "HHHHSSSSS.",
+  "HHHSSSSES.",
+  "HHSSSSSSS.",
+  "HHHSSSMS..",
+  "HH.TTTTT..",
+  ".TTTTTTTT.",
+  ".TTTTTTTS.",
+  ".TTTTTTTS.",
+  ".PPPPPPPP.",
+  "..KK..KK..",
+];
+const LOOKS = [
+  {H:"#2b1d14", S:"#f2c7a0", T:"#13c4ae", P:"#36407a", K:"#1d2b3a", E:"#1d2b3a", M:"#ff4757"},
+  {H:"#ffb020", S:"#f6d2b4", T:"#ff4757", P:"#2b3a55", K:"#1d2b3a", E:"#1d2b3a", M:"#c8443a"},
+  {H:"#111111", S:"#c98c62", T:"#4c7dff", P:"#2c2c2c", K:"#111111", E:"#111111", M:"#7a2f2a"},
+  {H:"#8b4a2b", S:"#e9b48d", T:"#ffae1a", P:"#5a3d2b", K:"#2b1d14", E:"#2b1d14", M:"#b24a3f"},
+  {H:"#d9d9e0", S:"#f2c7a0", T:"#8f7bff", P:"#3a3a4a", K:"#1d1d26", E:"#1d1d26", M:"#c8443a"},
+  {H:"#3a2a5c", S:"#a8724c", T:"#2ecc71", P:"#2b3a55", K:"#1d2b3a", E:"#1d2b3a", M:"#7a2f2a"},
+  {H:"#2b1d14", S:"#f6d2b4", T:"#ff6fae", P:"#7b5cff", K:"#36407a", E:"#1d2b3a", M:"#ff4757", B:"#ffae1a", f:1},
+  {H:"#ffb347", S:"#f6d2b4", T:"#13c4ae", P:"#ff6fae", K:"#36407a", E:"#1d2b3a", M:"#ff4757", B:"#ff4f9a", f:1},
+  {H:"#111111", S:"#c98c62", T:"#ffd23f", P:"#4c7dff", K:"#111111", E:"#111111", M:"#b23a48", B:"#ff4f9a", f:1},
+  {H:"#8b4a2b", S:"#e9b48d", T:"#8f7bff", P:"#36407a", K:"#2b1d14", E:"#2b1d14", M:"#ff4757", B:"#5ef0d2", f:1},
+  {H:"#ff8fc7", S:"#f6d2b4", T:"#ffffff", P:"#ff4f9a", K:"#7b5cff", E:"#1d2b3a", M:"#ff4757", B:"#ffd23f", f:1},
+  {H:"#4a3aa8", S:"#a8724c", T:"#2ecc71", P:"#ffae1a", K:"#1d2b3a", E:"#1d2b3a", M:"#7a2f2a", B:"#ff4f9a", f:1},
+];
+const lookOf = i => LOOKS[((Number(i) | 0) % LOOKS.length + LOOKS.length) % LOOKS.length];
+function drawSprite(canvas, look){
+  canvas.width = 10; canvas.height = 12;
+  const g = canvas.getContext("2d"); g.clearRect(0, 0, 10, 12);
+  px(g, SPRITE, look, 0, 0, 0, false, 1);
+}
+
+/* ---------- desk decoration ---------- */
+const DESK_COLORS = [["#ff8f4f","#ffbd6b"],["#ff4f9a","#ff9ccc"],["#13c4ae","#7ae8da"],["#8f7bff","#c2b8ff"],["#4c9dff","#9ccaff"],["#a0663c","#c98d5e"],["#c9d3e6","#ffffff"]];
+const CHAIR_COLORS = ["#6c63ff","#ff4f9a","#13c4ae","#ffae1a","#36407a"];
+const DECO = {
+  L: [["none","ไม่มี"],["paper","กองเอกสาร"],["cactus","กระบองเพชร"],["books","หนังสือ"],["frame","กรอบรูป"],["flowers","แจกันดอกไม้"]],
+  R: [["none","ไม่มี"],["mug","แก้วกาแฟ"],["lamp","โคมไฟ"],["duck","เป็ดเหลือง"],["donut","โดนัท"],["bubble","ชานมไข่มุก"]],
+  F: [["none","ไม่มี"],["bigplant","ต้นไม้ใหญ่"],["cat","แมวส้ม"],["dog","หมาน้อย"],["rug","พรมชมพู"],["bag","กระเป๋า"]],
+};
+const DEFAULT_DECO = {color:0, chair:0, L:"paper", R:"mug", F:"none"};
+const decoOf = r => Object.assign({}, DEFAULT_DECO, (r && r.deco && typeof r.deco === "object") ? r.deco : {});
+const R_ = (g, c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+const ITEM = {
+  paper:(g,P,x,y) => { R_(g,P.panel,x,y+4,9,6); R_(g,P.tileLine,x+1,y+6,6,1); R_(g,P.tileLine,x+1,y+8,5,1); },
+  cactus:(g,P,x,y) => { R_(g,"#ff8f4f",x+2,y+7,6,4); R_(g,"#2ecc71",x+4,y,3,8); R_(g,"#2ecc71",x+2,y+3,2,3); R_(g,"#2ecc71",x+7,y+2,2,3); R_(g,"#ff4f9a",x+5,y-1,1,1); },
+  books:(g,P,x,y) => { R_(g,"#ff4757",x,y+8,10,3); R_(g,"#4c7dff",x+1,y+5,9,3); R_(g,"#ffae1a",x,y+2,8,3); R_(g,P.panel,x+1,y+9,8,1); },
+  frame:(g,P,x,y) => { R_(g,"#36407a",x,y+1,9,9); R_(g,"#8fd3ff",x+1,y+2,7,7); R_(g,"#2ecc71",x+1,y+6,7,3); R_(g,"#ffd23f",x+5,y+3,2,2); },
+  flowers:(g,P,x,y) => { R_(g,"#4c9dff",x+3,y+6,5,5); R_(g,"#2ecc71",x+5,y+2,1,4); R_(g,"#2ecc71",x+3,y+3,1,3); R_(g,"#2ecc71",x+7,y+3,1,3); R_(g,"#ff4f9a",x+4,y,3,3); R_(g,"#ffd23f",x+2,y+1,2,2); R_(g,"#ff4757",x+7,y+1,2,2); },
+  mug:(g,P,x,y) => { R_(g,P.panel,x+2,y+5,6,6); R_(g,P.panel,x+8,y+6,2,3); R_(g,"#7a4a2b",x+3,y+5,4,1); if ((MAP.anim||0) % 6 < 3) R_(g,P.tileLine,x+4,y+2,1,2); else R_(g,P.tileLine,x+5,y+1,1,2); },
+  lamp:(g,P,x,y) => { R_(g,"#36407a",x+1,y+9,8,2); R_(g,"#36407a",x+4,y+3,2,6); R_(g,"#ff4f9a",x+1,y,8,4); R_(g,"#ffd23f",x+2,y+4,6,1); },
+  duck:(g,P,x,y) => { R_(g,"#ffd23f",x+1,y+6,8,5); R_(g,"#ffd23f",x+5,y+3,4,4); R_(g,"#ff8f4f",x+9,y+5,2,2); R_(g,"#1d2b3a",x+7,y+4,1,1); },
+  donut:(g,P,x,y) => { R_(g,"#e0a060",x+1,y+5,9,6); R_(g,"#ff6fae",x+1,y+5,9,4); R_(g,"#e0a060",x+4,y+7,3,2); R_(g,"#ffffff",x+3,y+6,1,1); R_(g,"#5ef0d2",x+7,y+6,1,1); R_(g,"#ffd23f",x+5,y+5,1,1); },
+  bubble:(g,P,x,y) => { R_(g,"#e8c9a0",x+2,y+3,6,8); R_(g,"#ffffff",x+2,y+2,6,1); R_(g,"#ff4f9a",x+5,y-2,1,5); R_(g,"#3a2a1c",x+3,y+9,1,1); R_(g,"#3a2a1c",x+5,y+8,1,1); R_(g,"#3a2a1c",x+6,y+10,1,1); },
+  bigplant:(g,P,x,y) => { R_(g,"#ff8f4f",x+3,y+11,10,7); R_(g,"#e66f3a",x+3,y+11,10,2); R_(g,"#2ecc71",x+1,y+2,14,9); R_(g,"#27ae60",x+4,y,8,4); R_(g,"#27ae60",x+2,y+6,4,3); R_(g,"#5ef0d2",x+10,y+4,2,2); },
+  cat:(g,P,x,y) => { const t = (MAP.anim||0) % 10 < 5; R_(g,"#ff9f43",x+1,y+8,12,7); R_(g,"#ff9f43",x+9,y+5,6,6); R_(g,"#ff9f43",x+9,y+3,2,2); R_(g,"#ff9f43",x+13,y+3,2,2); R_(g,"#e67e22",x+3,y+9,2,5); R_(g,"#e67e22",x+6,y+9,2,5); R_(g,"#1d2b3a",x+11,y+7,1,1); R_(g,"#1d2b3a",x+13,y+7,1,1); R_(g,"#ff9f43",t ? x-2 : x-1, t ? y+10 : y+12, 3, 2); },
+  dog:(g,P,x,y) => { R_(g,"#c98d5e",x+1,y+8,12,7); R_(g,"#c98d5e",x+9,y+4,6,7); R_(g,"#7a4a2b",x+8,y+4,2,5); R_(g,"#7a4a2b",x+14,y+4,2,5); R_(g,"#1d2b3a",x+11,y+7,1,1); R_(g,"#1d2b3a",x+13,y+7,1,1); R_(g,"#1d2b3a",x+12,y+9,1,1); R_(g,"#ff4757",x+11,y+11,3,1); },
+  rug:(g,P,x,y) => { R_(g,"#ff9ccc",x-6,y+2,44,18); R_(g,"#ff4f9a",x-6,y+2,44,2); R_(g,"#ff4f9a",x-6,y+18,44,2); R_(g,"#ffffff",x+6,y+10,20,1); },
+  bag:(g,P,x,y) => { R_(g,"#8f7bff",x+2,y+7,11,9); R_(g,"#6c63ff",x+4,y+4,7,4); R_(g,"#8f7bff",x+5,y+5,5,2); R_(g,"#ffd23f",x+6,y+10,3,2); },
+};
+function drawDesk(g, P, dx, dy, o){
+  const d = o.deco || DEFAULT_DECO;
+  const [dc, dt] = DESK_COLORS[d.color] || DESK_COLORS[0];
+  if (d.F === "rug") ITEM.rug(g, P, dx + 12, dy + 22);
+  g.fillStyle = dc; g.fillRect(dx, dy, 56, 20); g.fillStyle = dt; g.fillRect(dx, dy, 56, 16);
+  const mons = o.mons || 1;
+  for (let mI = 0; mI < mons; mI++) {
+    const mxx = dx + 28 - mons*9 + mI*18;
+    R_(g, P.wall, mxx, dy - 6, 16, 11); R_(g, P.wall, mxx + 6, dy + 5, 4, 2);
+    R_(g, o.busy && ((o.anim||0) + mI*3) % 14 < 10 ? P.screen : (CHAIR_COLORS[0]), mxx + 1, dy - 5, 14, 9);
+    if (o.busy) { R_(g, P.panel, mxx + 3, dy - 3, 6 + (((o.anim||0) + mI) % 4), 1); R_(g, P.panel, mxx + 3, dy - 1, 4 + (((o.anim||0) + mI*2) % 6), 1); }
+  }
+  if (ITEM[d.L]) ITEM[d.L](g, P, dx + 2, dy + 2);
+  if (ITEM[d.R]) ITEM[d.R](g, P, dx + 44, dy + 2);
+  R_(g, CHAIR_COLORS[d.chair] || CHAIR_COLORS[0], dx + 21, dy + 26, 14, 10); R_(g, P.wall, dx + 27, dy + 36, 2, 3);
+  if (d.F && d.F !== "rug" && ITEM[d.F]) ITEM[d.F](g, P, dx + 1, dy + 24);
+}
+
+/* ---------- state ---------- */
+const S = {db:null, user:null, room:null, myId:null, rooms:[], profiles:{}, ready:false, noDb:false,
+           view:"office", openRoom:null, editing:false, moveTo:null, setupDesk:null, setupDeco:null, sumMode:"person", setupLook:0, readOnly:false};
+
+const roomStats = r => {
+  const tasks = (r.tasks || []);
+  const open = tasks.filter(t => !t.done);
+  return {
+    open: open.length,
+    late: open.filter(t => t.due && t.due < TODAY).length,
+    today: open.filter(t => t.due === TODAY).length,
+    doneToday: tasks.filter(t => t.done && (t.doneAt || "").slice(0,10) === TODAY).length,
+  };
+};
+const nameOf = id => (S.profiles[id] && S.profiles[id].name) || (id === S.myId ? "คุณ" : "เพื่อนร่วมออฟฟิศ");
+const avatarOf = id => (S.profiles[id] && S.profiles[id].avatarUrl) || "";
+const myRoom = () => S.rooms.find(r => r.id === S.myId);
+
+/* ---------- saving (one write at a time) ---------- */
+let chain = Promise.resolve();
+function saveMine(mutator){
+  const cur = myRoom();
+  const next = JSON.parse(JSON.stringify(cur || {}));
+  mutator(next);
+  next.updatedAt = new Date().toISOString();
+  const i = S.rooms.findIndex(r => r.id === S.myId);
+  const local = Object.assign({id:S.myId}, next);
+  if (i >= 0) S.rooms[i] = local; else S.rooms.push(local);
+  render();
+  const body = Object.assign({}, next); delete body.id;
+  chain = chain.then(() => S.db.doc("rooms/" + S.myId).set(body)).catch(e => {
+    if (e && e.code === "invalid_argument") { S.readOnly = true; toast("ยังไม่มีสิทธิ์แก้ไข ขอให้เจ้าของออฟฟิศแชร์ให้แบบ Editor"); }
+    else if (e && e.code === "quota_exceeded") toast("พื้นที่เก็บข้อมูลเต็ม ลองลบงานที่เสร็จนานแล้วออก");
+    else toast("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    render();
+  });
+}
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
+
+/* ---------- render ---------- */
+function render(){
+  $("#tab-office").setAttribute("aria-pressed", S.view === "office");
+  $("#tab-summary").setAttribute("aria-pressed", S.view === "summary");
+  renderStats();
+  const m = $("#main");
+  if (S.noDb) { m.innerHTML = `<div class="empty"><b>ประตูยังล็อกอยู่</b><span>เปิดลิงก์นี้ใน claude.ai และเข้าสู่ระบบก่อน ถึงจะเข้าออฟฟิศและเห็นงานของทุกคนได้</span></div>`; return; }
+  if (!S.ready) { m.innerHTML = `<div class="empty"><b>กำลังเปิดไฟออฟฟิศ…</b><span>รอสักครู่ กำลังโหลดห้องทำงานของทุกคน</span></div>`; return; }
+  if (S.view === "summary") { MAP.canvas = null; return renderSummary(m); }
+  if (!MAP.canvas || !m.contains(MAP.canvas)) {
+    m.innerHTML = `<div class="game">
+      <div class="stage" id="stage">
+        <div class="toolbar"><span class="tb-title">PIXEL HQ</span><span class="tb-on"><i class="live"></i>ออนไลน์ <b id="tbCount">1</b> คน</span>
+          <div class="hud">
+            <button id="music" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 2v8.3A2.5 2.5 0 1 0 7.5 12.5V5h5v3.3A2.5 2.5 0 1 0 14 10.5V2z"/></svg><span>เพลง: ปิด</span></button>
+            <label title="ความดัง"><input type="range" id="vol" min="0" max="1" step="0.05" value="0.5" aria-label="ความดังเพลง"></label>
+            <button id="fs">เต็มจอ</button>
+          </div>
+        </div>
+        <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas>
+          <div class="dpad" aria-label="ปุ่มเดิน">
+            <span></span><button data-dir="up" aria-label="ขึ้น">▲</button><span></span>
+            <button data-dir="left" aria-label="ซ้าย">◀</button><span></span><button data-dir="right" aria-label="ขวา">▶</button>
+            <span></span><button data-dir="down" aria-label="ลง">▼</button><span></span>
+          </div>
+          <button class="prompt" id="prompt" hidden></button>
+        </div>
+        <form class="chatbar" id="chatbar"><input type="text" id="say" maxlength="80" autocomplete="off" placeholder="พิมพ์ข้อความลอยเหนือหัว แล้วกด Enter"><button type="submit">ส่ง</button></form>
+        <div class="keys">เดิน <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> หรือลูกศร · คลิก/แตะพื้นเพื่อเดินไปตรงนั้น · <kbd>E</kbd> เปิดห้องเมื่อยืนหน้าโต๊ะ · <kbd>Enter</kbd> พิมพ์แชท</div>
+      </div>
+      <aside class="side">
+        <section class="card"><h3>ออนไลน์ตอนนี้ <span class="count" id="onlineCount">1</span><small id="connState"></small></h3><ul id="online"></ul></section>
+        <section class="card"><h3>แชทในออฟฟิศ</h3><ul id="chatlog"></ul></section>
+      </aside>
+    </div>
+    <div class="hint" id="below"></div>
+    <div class="modal" id="modal" hidden><div class="modal-card" role="dialog" aria-modal="true"><button class="modal-x" id="mclose" aria-label="ปิด">×</button><div id="modalBody"></div></div></div>`;
+    initMap($("#map"));
+    MAP.target = null;
+    renderSide();
+  }
+  layoutMap();
+  $("#below").innerHTML = `
+    <span><i style="background:var(--accent)"></i>แตะโต๊ะว่างเพื่อจอง หรือแตะโต๊ะเพื่อนเพื่อดูงาน</span>
+    <span><i style="background:var(--danger)"></i>บับเบิลแดง = มีงานเลยกำหนด</span>
+    <span><i style="background:var(--accent2)"></i>ป้ายชื่อมีจุดเขียว = ออนไลน์อยู่ตอนนี้</span>`;
+  const modal = $("#modal"), body = $("#modalBody");
+  const wasOpen = !modal.hidden;
+  if (S.editing && S.myId) { modal.hidden = false; renderSetup(body); }
+  else if (S.moveTo != null && myRoom()) { modal.hidden = false; body.innerHTML = `<div class="panel"><div class="who"><h2>ย้ายโต๊ะ</h2></div><p>ย้ายห้อง “${esc(myRoom().roomName || "ของคุณ")}” มาที่โต๊ะนี้ใช่ไหม งานและการแต่งโต๊ะจะย้ายตามมาด้วย</p><div class="actions" style="display:flex;gap:8px"><button class="btn primary" id="moveok">ย้ายเลย</button><button class="btn ghost" id="cancel">ยกเลิก</button></div></div>`; }
+  else if (S.openRoom && S.rooms.find(x => x.id === S.openRoom)) { modal.hidden = false; renderRoom(body, S.rooms.find(x => x.id === S.openRoom)); }
+  else { S.openRoom = null; modal.hidden = true; }
+  if (!modal.hidden && !wasOpen) modal.querySelector(".modal-card").scrollTop = 0;
+}
+
+function renderStats(){
+  let open=0, late=0, today=0, done=0;
+  S.rooms.forEach(r => { const s = roomStats(r); open+=s.open; late+=s.late; today+=s.today; done+=s.doneToday; });
+  $("#stats").innerHTML = `
+    <div class="stat"><b>${S.rooms.length}</b><span>คนในออฟฟิศ</span></div>
+    <div class="stat"><b>${open}</b><span>งานค้างทั้งหมด</span></div>
+    <div class="stat warn"><b>${today}</b><span>ครบกำหนดวันนี้</span></div>
+    <div class="stat bad"><b>${late}</b><span>เลยกำหนด</span></div>
+    <div class="stat"><b>${done}</b><span>เสร็จวันนี้</span></div>`;
+}
+
+/* ---------- game world: one shared office floor ---------- */
+const T = 16;
+const BACK = [
+  "..HHHHHH..",
+  ".HHHHHHHH.",
+  ".HHHHHHHH.",
+  ".HHHHHHHH.",
+  ".SHHHHHHS.",
+  "..HHHHHH..",
+  "..TTTTTT..",
+  ".TTTTTTTT.",
+  "STTTTTTTTS",
+  "S.TTTTTT.S",
+  "..PPPPPP..",
+  "..KK..KK..",
+];
+const SIDE = [
+  "..HHHHHH..",
+  ".HHHHHHHH.",
+  ".HHHSSSSS.",
+  ".HHSSSSES.",
+  ".HSSSSSSS.",
+  "..SSSSMS..",
+  "..TTTTTT..",
+  ".TTTTTTTT.",
+  ".TTTTTTTS.",
+  ".TTTTTTTS.",
+  "..PPPPPP..",
+  "..KK..KK..",
+];
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MAP = {canvas:null, ctx:null, off:null, octx:null, w:480, h:320, hT:20, slots:[], order:[], hits:[], solids:[],
+  hover:null, me:null, keys:new Set(), target:null, remote:{}, chat:[], last:0, anim:0, lastSent:"", near:null, dpad:null};
+
+function px(g, pat, look, x, y, step, flip, sc){
+  sc = sc || 2;
+  const p = lookOf(look);
+  if (p.f) pat = pat === BACK ? BACK_F : pat === SIDE ? SIDE_F : pat === SPRITE ? SPRITE_F : pat;
+  pat.forEach((row, yy) => {
+    let r = row;
+    if (yy === 11 && step) r = step === 1 ? ".KK....KK." : "...KKKK...";
+    [...r].forEach((c, xx) => { const col = p[c]; if (c !== "." && col) { g.fillStyle = col; g.fillRect(x + (flip ? 9 - xx : xx) * sc, y + yy * sc, sc, sc); } });
+  });
+}
+function palette(){
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  const o = {}; ["wall","wallTop","desk","deskTop","screen","wood","woodB","accent","accent2","panel","ink","danger","amber","chair","sofa","tile","tileLine","tileAlt","muted","leaf","rug","blue"].forEach(k => o[k] = v("--" + k));
+  return o;
+}
+const hashLook = id => { let h = 0; for (const c of String(id || "guest")) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h) % LOOKS.length; };
+const myLook = () => { const r = myRoom(); return r ? (Number(r.avatar) || 0) : hashLook(S.myId); };
+function sortedRooms(){ return [...S.rooms].sort((a,b) => (a.joinedAt||"").localeCompare(b.joinedAt||"") || a.id.localeCompare(b.id)); }
+const onlineIds = () => { const s = new Set(); Object.values(MAP.remote).forEach(r => r.by && s.add(r.by)); if (S.myId) s.add(S.myId); return s; };
+
+function layoutMap(){
+  const rooms = sortedRooms();
+  const maxDesk = rooms.reduce((m, r) => Math.max(m, Number.isInteger(r.desk) ? r.desk : -1), -1);
+  const cols = 4, rows = Math.max(2, Math.ceil((rooms.length + 1) / cols), Math.ceil((maxDesk + 1) / cols));
+  MAP.hT = Math.max(16, Math.ceil(3 + rows * 4.6 + 2));
+  MAP.h = MAP.hT * T;
+  MAP.slots = [];
+  for (let i = 0; i < rows * cols; i++) MAP.slots.push({x:(1 + (i % cols) * 4.25) * T, y:(3 + Math.floor(i / cols) * 4.6) * T});
+  const order = new Array(MAP.slots.length).fill(null), rest = [];
+  rooms.forEach(r => { const d = Number.isInteger(r.desk) ? r.desk : -1; if (d >= 0 && d < order.length && !order[d]) order[d] = r; else rest.push(r); });
+  rest.forEach(r => { const i = order.indexOf(null); if (i >= 0) order[i] = r; });
+  MAP.order = order;
+  buildSolids();
+  if (!MAP.me) { MAP.me = {x:21*T, y:11*T, dir:"down", moving:false}; }
+  if (blocked(MAP.me.x, MAP.me.y)) unstick(MAP.me);
+  sizeMap();
+}
+function buildSolids(){
+  const H = MAP.h, W = MAP.w, lx = 19*T, ly = 9*T, s = [];
+  MAP.slots.forEach(sl => s.push({x:sl.x + 4, y:sl.y + 6, w:56, h:22}));
+  const mx = 20*T + 8, my = 4*T + 4; s.push({x:mx, y:my - 4, w:6*T, h:2*T + 6});
+  s.push({x:lx, y:ly - 14, w:W - lx, h:18});               // partition + counter
+  s.push({x:lx - 3, y:ly - 14, w:4, h:36});                 // wall above doorway
+  s.push({x:lx - 3, y:ly + 52, w:4, h:H - ly - 52});        // wall below doorway
+  const sx = 23*T, sy = H - 5*T;
+  s.push({x:sx, y:sy - 4, w:5*T, h:14}, {x:sx + 5*T - 12, y:sy - 4, w:12, h:3*T + 4}, {x:sx + 14, y:sy + 22, w:2*T - 8, h:12});
+  s.push({x:20*T - 2, y:H - 2*T - 6, w:16, h:18});          // plant
+  MAP.solids = s;
+}
+function blocked(x, y){
+  const fx = x - 6, fy = y - 5, fw = 12, fh = 5;
+  if (fx < 3 || fx + fw > MAP.w - 3 || fy < 2*T + 2 || fy + fh > MAP.h - 3) return true;
+  return MAP.solids.some(r => fx < r.x + r.w && fx + fw > r.x && fy < r.y + r.h && fy + fh > r.y);
+}
+function unstick(p){
+  for (let rad = 4; rad < 200; rad += 4) for (let a = 0; a < 16; a++) {
+    const x = p.x + Math.cos(a / 16 * Math.PI * 2) * rad, y = p.y + Math.sin(a / 16 * Math.PI * 2) * rad;
+    if (!blocked(x, y)) { p.x = x; p.y = y; return; }
+  }
+}
+function stageSize(){
+  const st = $("#stage"), big = st && st.classList.contains("big");
+  const cw = (MAP.canvas.parentElement.clientWidth || 480) - 8;
+  let k = cw / MAP.w;
+  if (big) { const avail = innerHeight - ($("#chatbar")?.offsetHeight || 0) - (st.querySelector(".toolbar")?.offsetHeight || 0) - 44; k = Math.min(k, avail / MAP.h); }
+  return k;
+}
+function sizeMap(){
+  const c = MAP.canvas; if (!c) return;
+  const dpr = window.devicePixelRatio || 1, k = stageSize();
+  MAP.k = k; MAP.dpr = dpr;
+  c.width = Math.round(MAP.w * k * dpr); c.height = Math.round(MAP.h * k * dpr);
+  c.style.width = (MAP.w * k) + "px"; c.style.height = (MAP.h * k) + "px";
+  MAP.off.width = MAP.w; MAP.off.height = MAP.h;
+  draw();
+}
+function initMap(c){
+  MAP.canvas = c; MAP.ctx = c.getContext("2d");
+  MAP.off = document.createElement("canvas"); MAP.octx = MAP.off.getContext("2d");
+  const pos = e => { const r = c.getBoundingClientRect(); return {x:(e.clientX - r.left) / r.width * MAP.w, y:(e.clientY - r.top) / r.height * MAP.h}; };
+  const hitAt = p => { for (let i = MAP.hits.length - 1; i >= 0; i--) { const h = MAP.hits[i]; if (p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) return h; } return null; };
+  c.addEventListener("pointermove", e => { const h = hitAt(pos(e)); c.style.cursor = h ? "pointer" : "crosshair"; MAP.hover = h ? h.id : null; });
+  c.addEventListener("pointerleave", () => { MAP.hover = null; });
+  c.addEventListener("click", e => {
+    const p = pos(e), h = hitAt(p);
+    if (h && h.desk) {
+      MAP.target = {x:h.desk.x, y:h.desk.y};
+      deskAction(h.id);
+    } else MAP.target = {x:p.x, y:p.y};
+  });
+}
+addEventListener("resize", () => { clearTimeout(MAP.rt); MAP.rt = setTimeout(sizeMap, 120); });
+
+/* keyboard */
+const KEYMAP = {ArrowUp:"up", KeyW:"up", ArrowDown:"down", KeyS:"down", ArrowLeft:"left", KeyA:"left", ArrowRight:"right", KeyD:"right"};
+const typing = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable); };
+addEventListener("keydown", e => {
+  if (!MAP.canvas || S.view !== "office") return;
+  if (e.key === "Enter" && !typing()) { const s = $("#say"); if (s) { s.focus(); e.preventDefault(); } return; }
+  if (typing()) { if (e.key === "Escape") document.activeElement.blur(); return; }
+  if ($("#modal") && !$("#modal").hidden && e.key !== "Escape") return;
+  if (e.key === "Escape" && !$("#modal").hidden) { $("#mclose").click(); return; }
+  if (e.key === "Escape") { const st = $("#stage"); if (st && st.classList.contains("big")) $("#fs").click(); return; }
+  const d = KEYMAP[e.code];
+  if (d) { MAP.keys.add(d); MAP.target = null; e.preventDefault(); }
+  if (e.code === "KeyE" && MAP.near) openNear();
+});
+addEventListener("keyup", e => { const d = KEYMAP[e.code]; if (d) MAP.keys.delete(d); });
+addEventListener("blur", () => MAP.keys.clear());
+function openNear(){ if (MAP.near) deskAction(MAP.near.id); }
+function deskAction(id){
+  MAP.keys.clear();
+  if (id.startsWith("__free:")) {
+    const idx = +id.slice(7);
+    if (!S.myId) { toast("ล็อกอิน claude.ai ก่อน ถึงจะจองโต๊ะได้"); return; }
+    if (S.readOnly) { toast("ยังไม่มีสิทธิ์จองโต๊ะ ขอให้เจ้าของออฟฟิศเชิญแบบ Editor"); return; }
+    if (!myRoom()) { S.setupDesk = idx; S.setupLook = hashLook(S.myId); S.setupDeco = Object.assign({}, DEFAULT_DECO); S.editing = true; }
+    else S.moveTo = idx;
+  } else { S.editing = false; S.moveTo = null; S.openRoom = id; }
+  render();
+}
+
+function plant(g, P, x, y){ g.fillStyle = P.desk; g.fillRect(x+2, y+9, 8, 6); g.fillStyle = P.leaf; g.fillRect(x, y, 12, 9); g.fillRect(x+3, y-3, 6, 4); g.fillStyle = P.accent2; g.fillRect(x+2, y+2, 3, 3); }
+
+function drawScene(){
+  const g = MAP.octx, P = palette(), W = MAP.w, H = MAP.h;
+  g.imageSmoothingEnabled = false;
+  // floor tiles, two-tone
+  for (let y = 0; y < H; y += T) for (let x = 0; x < W; x += T) { g.fillStyle = ((x + y) / T) % 2 ? P.tileAlt : P.tile; g.fillRect(x, y, T, T); }
+  g.fillStyle = P.tileLine; for (let x = 0; x < W; x += T) g.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += T) g.fillRect(0, y, W, 1);
+  // lounge wood
+  const lx = 19 * T, ly = 9 * T;
+  g.fillStyle = P.wood; g.fillRect(lx, ly, W - lx, H - ly);
+  g.fillStyle = P.woodB; for (let y = ly; y < H; y += 6) { g.fillRect(lx, y, W - lx, 1); for (let x = lx + ((y/6) % 2 ? 10 : 0); x < W; x += 20) g.fillRect(x, y, 1, 6); }
+  // partition + doorway
+  g.fillStyle = P.wallTop; g.fillRect(lx, ly - 6, W - lx, 8); g.fillStyle = P.wall; g.fillRect(lx, ly + 2, W - lx, 2);
+  g.fillRect(lx - 3, ly - 6, 3, 28); g.fillRect(lx - 3, ly + 52, 3, H - ly - 52);
+  g.fillStyle = P.amber; g.fillRect(lx - 4, ly + 20, 5, 2); g.fillRect(lx - 4, ly + 52, 5, 2);
+  // kitchen
+  g.fillStyle = P.panel; g.fillRect(22*T, ly - 10, 4*T, 12); g.fillStyle = P.accent2; g.fillRect(22*T, ly - 10, 4*T, 2);
+  g.fillStyle = P.blue; g.fillRect(22*T + 8, ly - 16, 10, 10); g.fillStyle = P.screen; g.fillRect(22*T + 10, ly - 22, 6, 7);
+  g.fillStyle = P.wall; g.fillRect(24*T, ly - 15, 12, 9); g.fillStyle = P.danger; g.fillRect(24*T + 8, ly - 13, 2, 2);
+  g.fillStyle = P.accent; g.fillRect(27*T, ly - 22, 18, 26); g.fillStyle = P.screen; g.fillRect(27*T + 3, ly - 19, 12, 9); g.fillStyle = P.amber; g.fillRect(27*T + 3, ly - 8, 12, 2);
+  plant(g, P, 20*T + 2, ly - 12); plant(g, P, 29*T - 2, ly - 12);
+  // sofa, rug, table
+  const sx = 23*T, sy = H - 5*T;
+  g.fillStyle = P.rug; g.fillRect(sx - 10, sy + 14, 4*T + 6, 3*T - 4); g.fillStyle = P.panel; g.globalAlpha = .35; g.fillRect(sx - 6, sy + 18, 4*T - 2, 2); g.fillRect(sx - 6, sy + 3*T + 4, 4*T - 2, 2); g.globalAlpha = 1;
+  g.fillStyle = P.sofa; g.fillRect(sx, sy, 5*T, 12); g.fillRect(sx + 5*T - 12, sy, 12, 3*T);
+  g.fillStyle = P.accent; g.fillRect(sx + 2, sy + 2, 5*T - 16, 8); g.fillRect(sx + 5*T - 10, sy + 12, 8, 3*T - 14);
+  g.fillStyle = P.panel; g.fillRect(sx + 14, sy + 24, 2*T - 8, 12); g.fillStyle = P.amber; g.fillRect(sx + 20, sy + 27, 5, 5);
+  plant(g, P, 20*T, H - 2*T);
+  // top wall
+  g.fillStyle = P.wallTop; g.fillRect(0, 0, W, 2*T); g.fillStyle = P.wall; g.fillRect(0, 2*T - 3, W, 3);
+  g.fillStyle = P.panel; g.globalAlpha = .45; for (let x = 0; x < W; x += 8) g.fillRect(x, 2*T - 6, 4, 2); g.globalAlpha = 1;
+  [[1.2, P.danger], [2.3, P.amber], [3.4, P.accent2]].forEach(([t, c]) => { g.fillStyle = P.wall; g.fillRect(t*T, 6, 14, 14); g.fillStyle = c; g.fillRect(t*T + 2, 8, 10, 10); g.fillStyle = P.panel; g.fillRect(t*T + 4, 10, 4, 4); });
+  g.fillStyle = P.wall; g.fillRect(6*T, 4, 52, 22); g.fillStyle = P.panel; g.fillRect(6*T + 2, 6, 48, 18);
+  g.fillStyle = P.accent; g.fillRect(6*T + 6, 10, 20, 2); g.fillStyle = P.blue; g.fillRect(6*T + 6, 15, 30, 2); g.fillStyle = P.accent2; g.fillRect(6*T + 6, 20, 14, 2);
+  g.fillStyle = P.desk; g.fillRect(12*T, 3, 30, 27); g.fillStyle = P.deskTop; g.fillRect(12*T + 2, 12, 26, 1); g.fillRect(12*T + 2, 21, 26, 1);
+  [[2,P.danger],[6,P.accent2],[10,P.amber],[15,P.chair],[20,P.accent]].forEach(([o,c]) => { g.fillStyle = c; g.fillRect(12*T + 2 + o, 5, 3, 7); g.fillRect(12*T + 4 + o, 14, 3, 7); });
+  plant(g, P, 15*T, 14);
+  g.fillStyle = P.wall; g.fillRect(17*T, 5, 34, 20); g.fillStyle = P.panel; g.fillRect(17*T + 2, 7, 30, 16);
+  g.fillStyle = P.accent2; g.fillRect(17*T + 6, 15, 4, 6); g.fillStyle = P.amber; g.fillRect(17*T + 12, 11, 4, 10); g.fillStyle = P.accent; g.fillRect(17*T + 18, 13, 4, 8); g.fillStyle = P.blue; g.fillRect(17*T + 24, 9, 4, 12);
+  g.fillStyle = P.wall; g.fillRect(21*T, 6, 7*T, 20); g.fillStyle = P.accent; g.fillRect(21*T + 2, 8, 7*T - 4, 16);
+  // meeting table
+  const mx = 20*T + 8, my = 4*T + 4;
+  g.fillStyle = P.chair; for (let i = 0; i < 4; i++) { g.fillRect(mx + 8 + i*20, my - 9, 10, 8); g.fillRect(mx + 8 + i*20, my + 2*T + 2, 10, 8); }
+  g.fillStyle = P.desk; g.fillRect(mx, my, 6*T, 2*T); g.fillStyle = P.deskTop; g.fillRect(mx + 2, my + 2, 6*T - 4, 2*T - 6);
+  g.fillStyle = P.panel; g.fillRect(mx + 20, my + 8, 10, 7); g.fillRect(mx + 54, my + 10, 9, 6);
+  // desks
+  const online = onlineIds();
+  MAP.hits = [];
+  MAP.slots.forEach((s, i) => {
+    const r = MAP.order[i];
+    const freeId = "__free:" + i;
+    const dx = s.x + 4, dy = s.y + 10;
+    const id = r ? r.id : freeId;
+    const hot = MAP.hover === id || (MAP.near && MAP.near.id === id);
+    if (hot || (r && r.id === S.openRoom) || (!r && (S.setupDesk === i || S.moveTo === i) )) { g.fillStyle = P.accent; g.globalAlpha = .2; g.fillRect(s.x, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
+    if (r && r.id === S.myId) { g.fillStyle = P.accent2; g.globalAlpha = .22; g.fillRect(s.x, s.y + 2, 4*T - 4, 4*T - 6); g.globalAlpha = 1; }
+    const stats = r ? roomStats(r) : null, busy = !!(stats && stats.open);
+    const mons = r ? Math.min(3, Math.max(1, (r.clients || []).length)) : 1;
+    const deco = r ? decoOf(r) : (S.editing && S.setupDesk === i && S.setupDeco ? S.setupDeco : {color:6, chair:4, L:"none", R:"none", F:"none"});
+    if (!r && !(S.editing && S.setupDesk === i)) g.globalAlpha = .55;
+    drawDesk(g, P, dx, dy, {deco, busy, mons, anim:MAP.anim});
+    g.globalAlpha = 1;
+    const chairFront = {x:dx + 28, y:dy + 50};
+    if (r && busy && !online.has(r.id)) px(g, BACK, Number(r.avatar)||0, dx + 18, dy + 13, 0);
+    MAP.hits.push({id, desk:chairFront, x:s.x, y:s.y, w:4*T - 4, h:4*T});
+  });
+  // characters, y-sorted
+  const chars = [];
+  if (MAP.me && S.view === "office") chars.push({x:MAP.me.x, y:MAP.me.y, dir:MAP.me.dir, moving:MAP.me.moving, look:myLook(), me:true});
+  Object.values(MAP.remote).forEach(r => chars.push(r));
+  chars.sort((a,b) => a.y - b.y).forEach(ch => {
+    const step = ch.moving ? (Math.floor(MAP.last / 150) % 2) + 1 : 0;
+    g.fillStyle = ch.me ? P.accent : P.wall; g.globalAlpha = ch.me ? .55 : .25; g.fillRect(Math.round(ch.x) - 8, Math.round(ch.y) - 2, 16, 4); g.globalAlpha = 1;
+    const pat = ch.dir === "up" ? BACK : (ch.dir === "left" || ch.dir === "right") ? SIDE : SPRITE;
+    px(g, pat, ch.look, Math.round(ch.x) - 10, Math.round(ch.y) - 24, step, ch.dir === "left");
+  });
+}
+
+function bubble(g, P, x, y, text, tone, maxW){
+  g.font = "600 6.5px 'IBM Plex Sans Thai', sans-serif";
+  let t = text; const lim = maxW || 120;
+  while (g.measureText(t).width > lim && t.length > 2) t = t.slice(0, -2);
+  if (t !== text) t += "…";
+  const w = Math.ceil(g.measureText(t).width) + 8, h = 11;
+  const bx = Math.max(1, Math.min(MAP.w - w - 1, x - w/2)), by = y - h;
+  const edge = tone === "bad" ? P.danger : tone === "say" ? P.accent : P.wall;
+  g.fillStyle = edge; g.fillRect(bx - .7, by - .7, w + 1.4, h + 1.4);
+  g.fillStyle = tone === "bad" ? P.danger : P.panel; g.fillRect(bx, by, w, h);
+  g.beginPath(); g.moveTo(x - 2.5, by + h); g.lineTo(x + 2.5, by + h); g.lineTo(x, by + h + 3); g.closePath(); g.fillStyle = edge; g.fill();
+  g.fillStyle = tone === "bad" ? "#ffffff" : P.ink; g.textBaseline = "middle"; g.textAlign = "left";
+  g.fillText(t, bx + 4, by + h/2 + .3);
+}
+function draw(){
+  if (!MAP.canvas) return;
+  drawScene();
+  const c = MAP.ctx, P = palette(), k = MAP.k * MAP.dpr, now = Date.now();
+  c.setTransform(1,0,0,1,0,0); c.imageSmoothingEnabled = false;
+  c.drawImage(MAP.off, 0, 0, MAP.canvas.width, MAP.canvas.height);
+  c.setTransform(k, 0, 0, k, 0, 0);
+  c.font = "700 9px 'Pixelify Sans', monospace"; c.fillStyle = "#ffffff"; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText("PIXEL HQ", 24.5*T, 16.5);
+  c.font = "600 5.5px 'IBM Plex Sans Thai', sans-serif"; c.fillStyle = P.muted;
+  c.fillText("ห้องประชุม", 23.5*T, 2*T + 7);
+  c.textAlign = "right"; c.fillText("มุมพักผ่อน", MAP.w - 6, MAP.h - 7);
+  MAP.slots.forEach((s, i) => {
+    const r = MAP.order[i], cx = s.x + 32;
+    if (r) {
+      const st = roomStats(r);
+      let label = r.roomName || nameOf(r.id); if (label.length > 16) label = label.slice(0, 15) + "…";
+      c.font = (r.id === S.myId ? "700 " : "600 ") + "6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
+      c.fillStyle = r.id === S.myId ? P.accent : P.ink; c.fillText(label, cx, s.y + 54);
+      if (st.open) bubble(c, P, cx, s.y + 3, st.late ? `เลยกำหนด ${st.late}!` : st.today ? `วันนี้ ${st.today} · ค้าง ${st.open}` : `ค้าง ${st.open} งาน`, st.late ? "bad" : "");
+    } else {
+      const canBook = S.myId && !S.readOnly;
+      c.font = "700 6.5px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "top";
+      c.fillStyle = canBook ? P.accent : P.muted;
+      c.fillText(!canBook ? "โต๊ะว่าง" : myRoom() ? "ย้ายมาโต๊ะนี้" : "+ จองโต๊ะนี้", cx, s.y + 54);
+    }
+  });
+  const tag = (x, y, text, mine) => {
+    c.font = "700 5.8px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+    const w = c.measureText(text).width + 9;
+    c.fillStyle = mine ? P.accent : "rgba(31,42,68,.78)"; c.fillRect(x - w/2, y - 4.5, w, 9);
+    c.fillStyle = "#3ee07a"; c.fillRect(x - w/2 + 2.5, y - 1, 2.2, 2.2);
+    c.fillStyle = "#ffffff"; c.fillText(text, x + 1.5, y + .3);
+  };
+  const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+  if (MAP.me && S.view === "office") {
+    tag(MAP.me.x, MAP.me.y - 29, "คุณ", true);
+    if (MAP.me.say && now - MAP.me.sayAt < 7000) bubble(c, P, MAP.me.x, MAP.me.y - 35, MAP.me.say, "say", 140);
+  }
+  Object.values(MAP.remote).forEach(r => {
+    tag(r.x, r.y - 29, cut(r.by ? nameOf(r.by) : "ผู้มาเยือน", 14), false);
+    if (r.say && now - r.sayAt < 7000) bubble(c, P, r.x, r.y - 35, r.say, "say", 140);
+  });
+}
+
+/* movement + presence */
+function stepMe(dt){
+  const me = MAP.me; if (!me) return;
+  let vx = 0, vy = 0;
+  const k = MAP.keys, dp = MAP.dpad;
+  if (k.has("left") || dp === "left") vx -= 1; if (k.has("right") || dp === "right") vx += 1;
+  if (k.has("up") || dp === "up") vy -= 1; if (k.has("down") || dp === "down") vy += 1;
+  if (!vx && !vy && MAP.target) {
+    const dx = MAP.target.x - me.x, dy = MAP.target.y - me.y, d = Math.hypot(dx, dy);
+    if (d < 2) MAP.target = null; else { vx = dx / d; vy = dy / d; }
+  }
+  const sp = 78 * dt;
+  let moved = false;
+  if (vx || vy) {
+    const n = Math.hypot(vx, vy); vx /= n; vy /= n;
+    const nx = me.x + vx * sp, ny = me.y + vy * sp;
+    if (!blocked(nx, me.y)) { me.x = nx; moved = true; }
+    if (!blocked(me.x, ny)) { me.y = ny; moved = true; }
+    if (!moved) MAP.target = null;
+    me.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? "left" : "right") : (vy < 0 ? "up" : "down");
+  }
+  me.moving = moved;
+  // nearest desk
+  let best = null, bd = 30;
+  MAP.hits.forEach(h => { if (!h.desk) return; const d = Math.hypot(h.desk.x - me.x, h.desk.y - me.y); if (d < bd) { bd = d; best = h; } });
+  if ((best && best.id) !== (MAP.near && MAP.near.id)) { MAP.near = best; updatePrompt(); }
+  sendPresence();
+}
+function sendPresence(){
+  if (!S.room || !MAP.me) return;
+  const me = MAP.me;
+  const p = {x:Math.round(me.x), y:Math.round(me.y), dir:me.dir, mv:me.moving ? 1 : 0, look:myLook(), uid:S.myId || null};
+  const key = JSON.stringify(p);
+  if (key === MAP.lastSent) return;
+  MAP.lastSent = key;
+  S.room.presence(p).catch(() => {});
+}
+function stepRemote(dt){
+  Object.values(MAP.remote).forEach(r => {
+    const dx = r.tx - r.x, dy = r.ty - r.y, d = Math.hypot(dx, dy);
+    if (d > 80) { r.x = r.tx; r.y = r.ty; }
+    else if (d > .5) { const s = Math.min(d, 110 * dt); r.x += dx / d * s; r.y += dy / d * s; }
+    r.moving = r.mv || d > 1;
+  });
+}
+function updatePrompt(){
+  const el = $("#prompt"); if (!el) return;
+  const n = MAP.near;
+  if (!n) { el.hidden = true; return; }
+  const r = S.rooms.find(x => x.id === n.id);
+  el.textContent = n.id.startsWith("__free:") ? (myRoom() ? "กด E หรือแตะที่นี่ เพื่อย้ายมาโต๊ะนี้" : "กด E หรือแตะที่นี่ เพื่อจองโต๊ะนี้") : `กด E หรือแตะที่นี่ เพื่อเปิด ${r ? (r.roomName || nameOf(r.id)) : "ห้อง"}`;
+  el.hidden = false;
+}
+function loop(t){
+  requestAnimationFrame(loop);
+  if (!MAP.canvas || document.hidden || S.view !== "office") { MAP.last = t; return; }
+  const dt = Math.min(.05, (t - (MAP.prevT || t)) / 1000); MAP.prevT = t; MAP.last = t;
+  MAP.anim = Math.floor(t / 110);
+  stepMe(dt); stepRemote(dt); draw();
+}
+requestAnimationFrame(loop);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
+
+/* room: who's here + chat bubbles */
+function connectRoom(room){
+  S.room = room;
+  room.onPeers(async ch => {
+    const seen = new Set();
+    ch.peers.forEach(p => {
+      if (p.kind !== "viewer" || p.sameTab) return;
+      const pr = p.presence || {};
+      if (typeof pr.x !== "number" || typeof pr.y !== "number") return;
+      seen.add(p.peer);
+      let r = MAP.remote[p.peer];
+      if (!r) r = MAP.remote[p.peer] = {x:pr.x, y:pr.y, tx:pr.x, ty:pr.y, sayKey:null};
+      r.tx = Math.max(0, Math.min(MAP.w, pr.x)); r.ty = Math.max(0, Math.min(MAP.h, pr.y));
+      r.dir = ["up","down","left","right"].includes(pr.dir) ? pr.dir : "down";
+      r.mv = !!pr.mv; r.look = Math.abs(Number(pr.look) | 0) % LOOKS.length;
+      r.by = p.by || (typeof pr.uid === "string" ? pr.uid : null);
+      r.isMe = p.isMe;
+      const say = pr.say;
+      if (say && typeof say.t === "string" && say.at !== r.sayKey) {
+        r.sayKey = say.at;
+        const text = say.t.slice(0, 80);
+        if (r.sayInit) { r.say = text; r.sayAt = Date.now(); pushChat(r.by, text, false); }
+        else if (Date.now() - Number(say.at) < 7000) { r.say = text; r.sayAt = Date.now(); }
+      }
+      r.sayInit = true;
+    });
+    Object.keys(MAP.remote).forEach(k => { if (!seen.has(k)) delete MAP.remote[k]; });
+    if (S.user) { const ids = [...onlineIds()]; try { const ps = await S.user.profiles(ids); Object.assign(S.profiles, ps); } catch {} }
+    renderSide();
+  }, () => { renderSide(); });
+  room.onConnection(() => renderSide(), () => {});
+  sendPresence();
+}
+function pushChat(by, text, mine){
+  MAP.chat.push({by, text, mine, at:Date.now()});
+  if (MAP.chat.length > 40) MAP.chat.shift();
+  renderSide();
+}
+function say(text){
+  text = String(text).replace(new RegExp("[\\u0000-\\u001f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]", "g"), "").trim().slice(0, 80);
+  if (!text) return;
+  MAP.me.say = text; MAP.me.sayAt = Date.now();
+  pushChat(S.myId, text, true);
+  if (S.room) S.room.presence({say:{t:text, at:Date.now()}}).catch(() => toast("ส่งข้อความไม่สำเร็จ"));
+}
+function renderSide(){
+  const on = $("#online"), log = $("#chatlog"); if (!on || !log) return;
+  const ppl = new Map();
+  if (S.myId || !S.room) ppl.set(S.myId || "me", {me:true});
+  Object.values(MAP.remote).forEach(r => { const k = r.by || ("peer" + Math.random()); if (!ppl.has(k) && !(r.by && r.by === S.myId)) ppl.set(k, {by:r.by}); });
+  const conn = S.room ? S.room.connected() : false;
+  $("#onlineCount").textContent = ppl.size; const tc = $("#tbCount"); if (tc) tc.textContent = ppl.size;
+  on.innerHTML = [...ppl.entries()].map(([id, p]) => {
+    const nm = p.me ? "คุณ" : (p.by ? nameOf(p.by) : "ผู้มาเยือน");
+    const av = p.by || p.me ? avatarOf(p.me ? S.myId : p.by) : "";
+    return `<li>${av ? `<img alt="" src="${esc(av)}">` : `<span class="dot-av"></span>`}<span>${esc(nm)}</span><i class="live"></i></li>`;
+  }).join("");
+  $("#connState").textContent = S.room ? (conn ? "ออนไลน์" : "กำลังเชื่อมต่อ…") : "เล่นคนเดียว";
+  log.innerHTML = MAP.chat.length ? MAP.chat.slice(-30).map(m => `<li class="${m.mine ? "mine" : ""}"><b>${esc(m.mine ? "คุณ" : (m.by ? nameOf(m.by) : "ผู้มาเยือน"))}</b><span>${esc(m.text)}</span><time>${new Date(m.at).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit"})}</time></li>`).join("") : `<li class="note">ยังไม่มีข้อความ พิมพ์ทักเพื่อนได้เลย ข้อความจะลอยเหนือหัวตัวละคร 7 วินาที</li>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+/* chiptune lo-fi, generated in the browser */
+const MUSIC = {ctx:null, on:false, timer:0, step:0, next:0, master:null, vol:.5};
+const CHORDS = [[48,52,55,59],[45,48,52,55],[41,45,48,52],[43,47,50,55]];
+const ARP = [0,1,2,3,2,1,2,3];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function note(type, freq, t, dur, gain, filt){
+  const c = MUSIC.ctx, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + Math.min(.02, dur/4)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  let node = o;
+  if (filt) { const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = filt; o.connect(f); node = f; }
+  node.connect(g); g.connect(MUSIC.master); o.start(t); o.stop(t + dur + .05);
+}
+function schedule(){
+  const c = MUSIC.ctx, spb = 60 / 82 / 2;
+  while (MUSIC.next < c.currentTime + .15) {
+    const t = MUSIC.next, s = MUSIC.step, bar = Math.floor(s / 8) % 4, ch = CHORDS[bar], i = s % 8;
+    if (i === 0) ch.forEach(n => note("triangle", mtof(n), t, spb * 8.2, .05, 900));
+    if (i === 0 || i === 4) note("sine", mtof(ch[0] - 12), t, spb * 3, .16, 400);
+    if (i !== 7) note("square", mtof(ch[ARP[i]] + 12), t, spb * .9, .022, 2200);
+    if (i % 2 === 1) { const b = c.createBuffer(1, 2205, 44100), d = b.getChannelData(0); for (let j = 0; j < d.length; j++) d[j] = (Math.random()*2-1) * (1 - j/d.length); const src = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 6000; g.gain.value = .03; src.buffer = b; src.connect(f); f.connect(g); g.connect(MUSIC.master); src.start(t); }
+    MUSIC.next += spb; MUSIC.step++;
+  }
+}
+function toggleMusic(){
+  try {
+    if (!MUSIC.ctx) { MUSIC.ctx = new (window.AudioContext || window.webkitAudioContext)(); MUSIC.master = MUSIC.ctx.createGain(); MUSIC.master.connect(MUSIC.ctx.destination); }
+    MUSIC.on = !MUSIC.on;
+    if (MUSIC.on) { MUSIC.ctx.resume(); MUSIC.master.gain.setTargetAtTime(MUSIC.vol * .6, MUSIC.ctx.currentTime, .3); MUSIC.next = MUSIC.ctx.currentTime + .05; MUSIC.timer = setInterval(schedule, 30); }
+    else { MUSIC.master.gain.setTargetAtTime(0, MUSIC.ctx.currentTime, .15); clearInterval(MUSIC.timer); }
+  } catch { toast("เบราว์เซอร์นี้เล่นเพลงไม่ได้"); MUSIC.on = false; }
+  const b = $("#music"); if (b) { b.setAttribute("aria-pressed", MUSIC.on); b.querySelector("span").textContent = MUSIC.on ? "เพลง: เปิด" : "เพลง: ปิด"; }
+}
+function setVol(v){ MUSIC.vol = v; if (MUSIC.ctx && MUSIC.on) MUSIC.master.gain.setTargetAtTime(v * .6, MUSIC.ctx.currentTime, .1); }
+
+function renderSetup(m){
+  if (m.querySelector("#setup")) { drawPreview(); return; }
+  const r = myRoom();
+  const d = S.setupDeco || decoOf(r);
+  const lookBtn = i => `<button type="button" class="pick" data-look="${i}" aria-pressed="${S.setupLook === i}" aria-label="ตัวละคร ${i+1}"><canvas></canvas></button>`;
+  const idx = LOOKS.map((_, i) => i);
+  const chips = (key, list) => list.map(([v, label]) => `<button type="button" class="dchip" data-deco="${key}:${v}" aria-pressed="${d[key] === v}">${esc(label)}</button>`).join("");
+  const swatches = (key, list) => list.map((c, i) => `<button type="button" class="swatch" data-deco="${key}:${i}" aria-pressed="${d[key] === i}" aria-label="สี ${i+1}" style="background:${Array.isArray(c) ? c[0] : c}"></button>`).join("");
+  m.innerHTML = `<form class="panel setup" id="setup">
+    <div class="who"><h2>${r ? "แก้ไขห้องและแต่งโต๊ะ" : "จองโต๊ะทำงาน"}</h2><span class="note">${r ? "เปลี่ยนตัวละคร แต่งโต๊ะ หรือเพิ่มลูกค้า" : "ตั้งชื่อห้อง เลือกตัวละคร แต่งโต๊ะ แล้วใส่ลูกค้าที่คุณดูแล"}</span></div>
+    <div class="field"><label for="f-name">ชื่อห้อง</label><input type="text" id="f-name" maxlength="40" placeholder="เช่น ห้องสายคอนเทนต์" value="${esc(r ? r.roomName : "")}"></div>
+    <div class="field"><span class="lab">ตัวละครผู้หญิง</span><div class="picks">${idx.filter(i => LOOKS[i].f).map(lookBtn).join("")}</div></div>
+    <div class="field"><span class="lab">ตัวละครผู้ชาย</span><div class="picks">${idx.filter(i => !LOOKS[i].f).map(lookBtn).join("")}</div></div>
+    <div class="deco">
+      <canvas id="deskPreview" width="80" height="64" aria-label="ตัวอย่างโต๊ะ"></canvas>
+      <div class="deco-opts">
+        <div class="field"><span class="lab">สีโต๊ะ</span><div class="row">${swatches("color", DESK_COLORS)}</div></div>
+        <div class="field"><span class="lab">สีเก้าอี้</span><div class="row">${swatches("chair", CHAIR_COLORS)}</div></div>
+        <div class="field"><span class="lab">ของบนโต๊ะ (ซ้าย)</span><div class="row">${chips("L", DECO.L)}</div></div>
+        <div class="field"><span class="lab">ของบนโต๊ะ (ขวา)</span><div class="row">${chips("R", DECO.R)}</div></div>
+        <div class="field"><span class="lab">ข้างเก้าอี้</span><div class="row">${chips("F", DECO.F)}</div></div>
+      </div>
+    </div>
+    <div class="field"><label for="f-clients">${r ? "เพิ่มลูกค้าใหม่" : "ลูกค้าที่ดูแล"}</label><input type="text" id="f-clients" placeholder="คั่นด้วยจุลภาค เช่น ร้านกาแฟ A, คลินิก B">
+      <span class="note">${r ? "ลูกค้าเดิมยังอยู่ครบ ใส่เฉพาะรายใหม่" : "เพิ่มทีหลังได้เสมอ"}</span></div>
+    <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="submit">${r ? "บันทึก" : "จองโต๊ะนี้"}</button><button class="btn ghost" type="button" id="cancel">ยกเลิก</button></div>
+  </form>`;
+  m.querySelectorAll(".pick").forEach(b => drawSprite(b.querySelector("canvas"), +b.dataset.look));
+  drawPreview();
+}
+function drawPreview(){
+  const c = $("#deskPreview"); if (!c) return;
+  const g = c.getContext("2d"), P = palette();
+  g.imageSmoothingEnabled = false;
+  for (let y = 0; y < 64; y += 16) for (let x = 0; x < 80; x += 16) { g.fillStyle = ((x + y) / 16) % 2 ? P.tileAlt : P.tile; g.fillRect(x, y, 16, 16); }
+  drawDesk(g, P, 12, 10, {deco:S.setupDeco || DEFAULT_DECO, busy:true, mons:2, anim:MAP.anim});
+  px(g, BACK, S.setupLook, 30, 23, 0);
+}
+function renderRoom(m, r){
+  const mine = r.id === S.myId && !S.readOnly;
+  const s = roomStats(r);
+  const cols = (r.clients || []).map(c => {
+    const all = (r.tasks || []).filter(t => t.clientId === c.id);
+    const open = all.filter(t => !t.done).sort((a,b) => (a.due||"9999").localeCompare(b.due||"9999"));
+    const done = all.filter(t => t.done).sort((a,b) => (b.doneAt||"").localeCompare(a.doneAt||""));
+    const li = t => { const d = dueInfo(t); return `<li class="task${t.done ? " done" : ""}">
+        <input type="checkbox" data-toggle="${esc(t.id)}" ${t.done ? "checked" : ""} ${mine ? "" : "disabled"} aria-label="ทำเสร็จแล้ว">
+        <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}</span>
+        ${mine ? `<button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`; };
+    return `<section class="col">
+      <div class="col-head"><h3>${esc(c.name)}</h3><span class="n">${open.length}</span>${mine ? `<button class="x" data-rmclient="${esc(c.id)}" aria-label="ลบลูกค้า ${esc(c.name)}">×</button>` : ""}</div>
+      <ul class="tasks">${open.map(li).join("") || `<li class="note">ไม่มีงานค้าง</li>`}</ul>
+      ${done.length ? `<details><summary>เสร็จแล้ว ${done.length}</summary><ul class="tasks" style="margin-top:6px">${done.slice(0,20).map(li).join("")}</ul></details>` : ""}
+      ${mine ? `<form class="addform" data-add="${esc(c.id)}"><input type="text" id="t-${esc(c.id)}" placeholder="เพิ่มงาน…" maxlength="140" required><input type="date" id="d-${esc(c.id)}" aria-label="กำหนดส่ง"><button class="btn primary" type="submit">เพิ่ม</button></form>` : ""}
+    </section>`;
+  }).join("");
+  m.innerHTML = `<div class="panel">
+    <div class="panel-head">
+      <canvas data-look="${Number(r.avatar)||0}"></canvas>
+      <div class="who"><h2>${esc(r.roomName || nameOf(r.id))}</h2><span>${esc(mine ? "ห้องของคุณ" : "ห้องของ " + nameOf(r.id))} · ค้าง ${s.open} · วันนี้ ${s.today} · เลยกำหนด ${s.late}</span></div>
+      <div class="actions">${mine ? `<button class="btn" id="edit">แต่งโต๊ะ / เพิ่มลูกค้า</button>` : ""}<button class="btn ghost" id="back">ปิด</button></div>
+    </div>
+    ${cols ? `<div class="cols">${cols}</div>` : `<div class="empty"><b>ยังไม่มีลูกค้า</b><span>${mine ? "กด “แต่งโต๊ะ / เพิ่มลูกค้า” เพื่อเพิ่มลูกค้าคนแรก" : "เจ้าของห้องยังไม่ได้ใส่ลูกค้า"}</span></div>`}
+    ${mine ? "" : `<p class="note">ดูได้อย่างเดียว เฉพาะเจ้าของห้องที่เพิ่มหรือติ๊กงานในห้องนี้ได้</p>`}
+  </div>`;
+  drawSprite(m.querySelector(".panel-head canvas"), Number(r.avatar)||0);
+}
+
+function collectOpen(){
+  const out = [];
+  S.rooms.forEach(r => (r.tasks||[]).forEach(t => {
+    const c = (r.clients||[]).find(c => c.id === t.clientId);
+    out.push({...t, owner:r.id, client: c ? c.name : "ไม่ระบุลูกค้า"});
+  }));
+  return out;
+}
+const rank = t => t.due && t.due < TODAY ? 0 : t.due === TODAY ? 1 : t.due ? 2 : 3;
+function groupHtml(title, img, items){
+  const open = items.filter(t => !t.done).sort((a,b) => rank(a)-rank(b) || (a.due||"").localeCompare(b.due||""));
+  const late = open.filter(t => rank(t) === 0).length, today = open.filter(t => rank(t) === 1).length;
+  const doneT = items.filter(t => t.done && (t.doneAt||"").slice(0,10) === TODAY).length;
+  return `<section class="group">
+    <div class="group-head">${img ? `<img alt="" src="${esc(img)}">` : ""}<h3>${esc(title)}</h3>
+      <span class="counts">${late ? `<span class="pill bad">เลย ${late}</span>` : ""}${today ? `<span class="pill warn">วันนี้ ${today}</span>` : ""}<span class="pill">ค้าง ${open.length}</span>${doneT ? `<span class="pill ok">เสร็จ ${doneT}</span>` : ""}</span></div>
+    <ul class="lines">${open.slice(0,12).map(t => { const d = dueInfo(t); return `<li><span class="t">${esc(t.title)}<span class="due ${d.cls}">${esc(d.label)}</span></span><span class="tag">${esc(S.sumMode === "person" ? t.client : nameOf(t.owner))}</span></li>`; }).join("") || `<li class="note">ไม่มีงานค้าง</li>`}
+    ${open.length > 12 ? `<li class="note">และอีก ${open.length - 12} งาน</li>` : ""}</ul></section>`;
+}
+function renderSummary(m){
+  const all = collectOpen();
+  let groups = "";
+  if (S.sumMode === "person") {
+    groups = S.rooms.map(r => groupHtml((r.id === S.myId ? "คุณ" : nameOf(r.id)) + (r.roomName ? " · " + r.roomName : ""), avatarOf(r.id), all.filter(t => t.owner === r.id))).join("");
+  } else {
+    const by = {};
+    all.forEach(t => { const k = t.client.trim().toLowerCase(); (by[k] = by[k] || {name:t.client, items:[]}).items.push(t); });
+    groups = Object.values(by).sort((a,b) => a.name.localeCompare(b.name, "th")).map(g => groupHtml(g.name, "", g.items)).join("");
+  }
+  m.innerHTML = `<div class="panel">
+    <div class="sumbar">
+      <div class="seg" role="group" aria-label="จัดกลุ่ม"><button data-mode="person" aria-pressed="${S.sumMode === "person"}">แยกตามคน</button><button data-mode="client" aria-pressed="${S.sumMode === "client"}">แยกตามลูกค้า</button></div>
+      <button class="btn" id="copy" style="margin-left:auto">คัดลอกสรุปเป็นข้อความ</button>
+    </div>
+    ${groups ? `<div class="groups">${groups}</div>` : `<div class="empty"><b>ยังไม่มีงาน</b><span>เมื่อมีคนเพิ่มงานในห้อง สรุปจะขึ้นที่นี่</span></div>`}
+  </div>`;
+}
+function summaryText(){
+  const all = collectOpen().filter(t => !t.done);
+  const lines = ["สรุปงานค้าง " + $("#today").textContent];
+  S.rooms.forEach(r => {
+    const mine = all.filter(t => t.owner === r.id).sort((a,b) => rank(a)-rank(b));
+    lines.push("", "▸ " + (r.id === S.myId ? "ฉัน" : nameOf(r.id)) + ` (ค้าง ${mine.length})`);
+    mine.forEach(t => lines.push(`  - [${t.client}] ${t.title} — ${dueInfo(t).label}`));
+  });
+  return lines.join("\n");
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, input[type=checkbox]");
+  if (!t) return;
+  if (t.id === "music") return toggleMusic();
+  if (t.id === "prompt") return openNear();
+  if (t.id === "fs") { const st = $("#stage"); const on = !st.classList.contains("big"); st.classList.toggle("big", on); document.body.style.overflow = on ? "hidden" : ""; t.textContent = on ? "ย่อจอ" : "เต็มจอ"; sizeMap(); return; }
+  if (t.dataset.dir) return;
+  if (t.id === "tab-office") { S.view = "office"; S.openRoom = null; S.editing = false; return render(); }
+  if (t.id === "tab-summary") { S.view = "summary"; return render(); }
+  if (t.dataset.room) { S.openRoom = t.dataset.room; return render(); }
+  if (t.id === "join") { S.editing = true; return render(); }
+  if (t.id === "back" || t.id === "mclose") { S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "edit") { S.openRoom = null; S.editing = true; S.setupLook = Number(myRoom().avatar)||0; S.setupDeco = decoOf(myRoom()); return render(); }
+  if (t.id === "cancel") { S.editing = false; S.openRoom = null; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "moveok") { const to = S.moveTo; S.moveTo = null; saveMine(r => { r.desk = to; }); toast("ย้ายโต๊ะแล้ว"); return; }
+  if (t.dataset.deco) {
+    const [k, v] = t.dataset.deco.split(":");
+    S.setupDeco = Object.assign({}, S.setupDeco || DEFAULT_DECO, {[k]: (k === "color" || k === "chair") ? +v : v});
+    t.parentElement.querySelectorAll("[data-deco]").forEach(b => b.setAttribute("aria-pressed", b === t));
+    drawPreview(); return;
+  }
+  if (t.classList.contains("pick")) { S.setupLook = +t.dataset.look; document.querySelectorAll(".pick").forEach(b => b.setAttribute("aria-pressed", b === t)); drawPreview(); return; }
+  if (t.dataset.mode) { S.sumMode = t.dataset.mode; return render(); }
+  if (t.id === "copy") {
+    const txt = summaryText();
+    try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว วางในแชทได้เลย"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); }
+    return;
+  }
+  if (t.dataset.toggle) { const id = t.dataset.toggle; return saveMine(r => { const k = r.tasks.find(x => x.id === id); if (k) { k.done = !k.done; k.doneAt = k.done ? new Date().toISOString() : null; } }); }
+  if (t.dataset.del) { const id = t.dataset.del; return saveMine(r => { r.tasks = r.tasks.filter(x => x.id !== id); }); }
+  if (t.dataset.rmclient) {
+    const id = t.dataset.rmclient;
+    if (t.dataset.armed !== "1") { t.dataset.armed = "1"; t.textContent = "ลบ?"; setTimeout(() => { t.dataset.armed = ""; t.textContent = "×"; }, 2500); return; }
+    return saveMine(r => { r.clients = r.clients.filter(c => c.id !== id); r.tasks = r.tasks.filter(x => x.clientId !== id); });
+  }
+});
+function fallbackCopy(txt){
+  const ta = document.createElement("textarea"); ta.value = txt; ta.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); toast("คัดลอกแล้ว"); } catch { toast("คัดลอกไม่ได้ ลองเลือกข้อความเอง"); } ta.remove();
+}
+document.addEventListener("input", e => { if (e.target.id === "vol") setVol(+e.target.value); });
+document.addEventListener("pointerdown", e => { const b = e.target.closest(".dpad button"); if (b) { MAP.dpad = b.dataset.dir; MAP.target = null; b.setPointerCapture && b.setPointerCapture(e.pointerId); e.preventDefault(); } });
+["pointerup","pointercancel"].forEach(ev => document.addEventListener(ev, () => { MAP.dpad = null; }));
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === "chatbar") { const i = $("#say"); say(i.value); i.value = ""; return; }
+  if (f.id === "setup") {
+    const name = $("#f-name").value.trim();
+    const newClients = $("#f-clients").value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const isNew = !myRoom();
+    saveMine(r => {
+      if (isNew) { r.joinedAt = new Date().toISOString(); r.clients = []; r.tasks = []; r.desk = S.setupDesk; }
+      r.roomName = name; r.avatar = S.setupLook; r.deco = Object.assign({}, S.setupDeco || DEFAULT_DECO);
+      newClients.forEach(n => { if (!r.clients.some(c => c.name.toLowerCase() === n.toLowerCase())) r.clients.push({id:uid(), name:n}); });
+    });
+    S.editing = false; S.setupDesk = null; S.openRoom = S.myId; toast(isNew ? "จองโต๊ะแล้ว ยินดีต้อนรับเข้าออฟฟิศ" : "บันทึกแล้ว"); return render();
+  }
+  if (f.dataset.add) {
+    const cid = f.dataset.add;
+    const title = f.querySelector("input[type=text]").value.trim();
+    const due = f.querySelector("input[type=date]").value || null;
+    if (!title) return;
+    saveMine(r => { r.tasks = r.tasks || []; r.tasks.push({id:uid(), clientId:cid, title, due, done:false, doneAt:null, createdAt:new Date().toISOString()}); });
+    setTimeout(() => { const i = document.getElementById("t-" + cid); if (i) i.focus(); }, 0);
+  }
+});
+
+/* ---------- boot ---------- */
+render();
+(async () => {
+  const use = n => (window.claude && window.claude.use) ? window.claude.use(n) : Promise.resolve(null);
+  const [db, user, room] = await Promise.all([use("db"), use("user"), use("room")]);
+  if (room) { try { connectRoom(room); } catch (e) { S.room = null; } }
+  if (!db) { S.noDb = true; return render(); }
+  S.db = db; S.user = user;
+  S.myId = user ? await user.id() : null;
+  if (user) { const w = await user.can("data.write"); if (w === false) S.readOnly = true; }
+  db.collection("rooms").onSnapshot(async snap => {
+    S.rooms = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+    S.ready = true;
+    if (user) {
+      const ids = S.rooms.map(r => r.id); if (S.myId) ids.push(S.myId);
+      try { S.profiles = await user.profiles(ids); } catch {}
+    }
+    // keep typing intact: don't re-render while an add-task input is focused
+    const a = document.activeElement;
+    if (a && a.matches && a.matches(".addform input, #setup input, #say")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
+    render();
+  }, err => { S.ready = true; toast("เชื่อมต่อออฟฟิศไม่ได้ ลองเปิดหน้าใหม่"); render(); });
+})();
+})();
+</script>
+
+</body></html>
