@@ -1000,6 +1000,68 @@ function stepCats(dt, now){
     }
   });
 }
+
+/* ---------- NPCs: three regulars who wander the floor and never work ---------- */
+const NPCS = [
+  {id:"telannas", name:"Tel'Annas", col:{H:"#f3d79a", S:"#f6d2b4", E:"#1f7a5a", G:"#1f8f6a", Y:"#e2b33c", W:"#f4f1e6", K:"#2f3a35"}, hair:"H",
+   rows:["....YYYY....","...HHHHHH...","..HHSSSSHH..","SHHSESSESHHS","..HSSSSSSH..","..HHSSSSHH..",".HHGGYYGGHH.",".HSGGGGGGSH.",".HSGGYYGGSH.","..GGWGGWGG..","..GG.WW.GG..","...K....K...","..YK....KY.."],
+   lines:["ซ้อมยิงธนูดีกว่าทำงาน", "ใครเห็นลูกธนูข้าบ้าง", "เดดไลน์? ไม่รู้จัก", "ไปหาชาไทยกินดีกว่า"]},
+  {id:"mortos", name:"Mortos", col:{H:"#e9ecf2", S:"#d9a77f", E:"#1d2b3a", M:"#b9c2cf", C:"#2f4aa8", Y:"#d9a630", D:"#4a5160"}, hair:"H",
+   rows:["....HHHH....","...HHHHHH...","...HSSSSH...","...SESSES...","...SSSSSS...",".MMMYMMYMMM.","MMMMMCCMMMMM","MM.MMCCMM.MM","MM.MYCCYM.MM","S..MMCCMM..S","...MM..MM...","...MM..MM...","..DDD..DDD.."],
+   lines:["ข้าคุ้มกันออฟฟิศอยู่ (เดินเฉยๆ)", "เกราะหนักจะตาย ขอพักก่อน", "หัวหน้ามาให้บอกด้วย", "งานนี้ไม่ใช่ภารกิจของข้า"]},
+  {id:"liliana", name:"Liliana", col:{O:"#f7d9c4", H:"#f3d79a", S:"#f6d2b4", E:"#c0304a", R:"#c8283c", W:"#fbf7f2", T:"#f6cbbd", Y:"#e2b33c"}, hair:"H",
+   rows:["..O......O..","..OO.HH.OO..","..HHHHHHHH..","..HSSSSSSH..","..HSESSESH..","..HSSSSSSH..","..HRWYYWRH..","TTHRWRRWRHTT","TTTRWWWWRTTT","TTT.WWWW.TTT",".TT.WRRW.TT.","....S..S....","....R..R...."],
+   lines:["ขอยืมหางนอนแปป", "ใครมีลูกอมบ้าง~", "งานเหรอ... ไว้พรุ่งนี้", "ไฟจิ้งจอกอุ่นดีนะ"]},
+];
+const npcById = id => NPCS.find(n => n.id === id);
+MAP.npcs = {};
+function npcAuto(n, now){
+  const seg = 14000 + (hashStr(n.id) % 7000), off = hashStr(n.id + "o") % seg;
+  const t = now + off, k = Math.floor(t / seg), f = (t % seg) / seg;
+  const sp = MAP.spots.length ? MAP.spots.filter(p => p.desk == null) : [{x:24*T, y:12*T}];
+  const A = sp[hashStr(n.id + ":" + k) % sp.length], B = sp[hashStr(n.id + ":" + (k + 1)) % sp.length];
+  const rest = .4;
+  if (f < rest || REDUCED) return {x:A.x, y:A.y + 6, moving:false, face:hashStr(n.id + k) % 2 ? "left" : "right", dir:"down"};
+  const pts = zoneOf(A) !== zoneOf(B) ? [A, DOOR, B] : [A, B];
+  const p = lerpPath(pts, (f - rest) / (1 - rest));
+  const nx = lerpPath(pts, Math.min(1, (f - rest) / (1 - rest) + .02));
+  const dx = nx.x - p.x, dy = nx.y - p.y;
+  return {x:p.x, y:p.y + 6, moving:true, face:p.face, dir:Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "up" : "down") : "side"};
+}
+function stepNpcs(now){
+  NPCS.forEach(n => {
+    const a = npcAuto(n, now), st = MAP.npcs[n.id] || (MAP.npcs[n.id] = {});
+    Object.assign(st, a);
+    const slot = Math.floor((now + hashStr(n.id) % 9000) / 13000);
+    if (!st.clickAt || now - st.clickAt > 4500) { st.say = (slot % 3 === 0 && (now + hashStr(n.id) % 9000) % 13000 < 4500) ? n.lines[hashStr(n.id + slot) % n.lines.length] : ""; }
+  });
+}
+function drawNpc(g, n, st, now){
+  const sc = 2, x0 = Math.round(st.x) - 12, y0 = Math.round(st.y) - 27, flip = st.face === "left";
+  g.fillStyle = "rgba(31,42,68,.22)"; g.fillRect(Math.round(st.x) - 9, Math.round(st.y) - 2, 18, 4);
+  const back = st.dir === "up", step = st.moving ? Math.floor(now / 150) % 2 : -1;
+  n.rows.forEach((row, yy) => {
+    let r = row;
+    if (back && yy >= 2 && yy <= 5) r = r.replace(/[SE]/g, n.hair);
+    if (yy >= n.rows.length - 2 && step >= 0) r = step ? " " + r.slice(0, -1) : r.slice(1) + " ";
+    [...r].forEach((ch, xx) => { const c = n.col[ch]; if (c) { g.fillStyle = c; g.fillRect(x0 + (flip ? 11 - xx : xx) * sc, y0 + yy * sc, sc, sc); } });
+  });
+  if (n.id === "telannas") { // bow
+    const bx = flip ? x0 - 3 : x0 + 24;
+    R_(g, "#e2b33c", bx, y0 + 6, 2, 2); R_(g, "#1f8f6a", bx + (flip ? -1 : 1), y0 + 8, 2, 10); R_(g, "#e2b33c", bx, y0 + 18, 2, 2);
+    g.fillStyle = "rgba(94,240,210,.7)"; g.fillRect(bx + (flip ? 2 : -1), y0 + 7, 1, 12);
+  } else if (n.id === "mortos") { // greatsword
+    const bx = flip ? x0 + 25 : x0 - 4;
+    R_(g, "#d9a630", bx - 2, y0 + 12, 6, 2); R_(g, "#4a5160", bx, y0 + 9, 2, 3); R_(g, "#e6ebf2", bx, y0 + 14, 3, 12); R_(g, "#2f4aa8", bx + 1, y0 + 15, 1, 9);
+  } else if (n.id === "liliana" && Math.floor(now / 500) % 4 !== 0) { // fox fire
+    const fx = x0 + (flip ? -4 : 26), fy = y0 + 8 + Math.sin(now / 300) * 2;
+    g.fillStyle = "rgba(255,110,140,.85)"; g.fillRect(fx, fy, 4, 4); g.fillStyle = "rgba(255,200,210,.9)"; g.fillRect(fx + 1, fy + 1, 2, 2);
+  }
+}
+function pokeNpc(id){
+  const n = npcById(id), st = MAP.npcs[id]; if (!n || !st) return;
+  st.say = n.lines[Math.floor(Math.random() * n.lines.length)]; st.clickAt = Date.now();
+}
 function callCat(id){
   const cat = catById(id); if (!cat) return;
   if (S.myCat === id) { S.myCat = null; toast(`ปล่อย${cat.name}ไปเดินเล่นแล้ว`); sendPresence(true); return; }
@@ -1171,7 +1233,9 @@ function drawScene(now){
   if (MAP.me && S.view === "office") things.push({kind:"ch", x:MAP.me.x, y:MAP.me.y, dir:MAP.me.dir, moving:MAP.me.moving, look:myLook(), equip:myEquip(), me:true, uidv:S.myId, hold:S.hold && Date.now() < S.hold.until ? S.hold.id : null});
   Object.values(MAP.remote).forEach(r => things.push({kind:"ch", x:r.x, y:r.y, dir:r.dir, moving:r.moving, look:r.look, equip:r.by && roomOf(r.by) ? roomOf(r.by).equip : null, uidv:r.by, hold:r.hold}));
   CATS.forEach(c => { const st = MAP.cats[c.id]; if (st) things.push({kind:"cat", cat:c, st, x:st.x, y:st.y}); });
+  NPCS.forEach(n => { const st = MAP.npcs[n.id]; if (st && st.x != null) things.push({kind:"npc", npc:n, st, x:st.x, y:st.y}); });
   things.sort((a,b) => a.y - b.y).forEach(th => {
+    if (th.kind === "npc") { drawNpc(g, th.npc, th.st, now); MAP.hits.push({id:"npc:" + th.npc.id, x:th.x - 12, y:th.y - 28, w:24, h:28}); return; }
     if (th.kind === "cat") { drawCat(g, th.cat, th.st.x, th.st.y, th.st.pose, th.st.face, now + hashStr(th.cat.id) % 997); MAP.hits.push({id:"cat:" + th.cat.id, x:th.x - 10, y:th.y - 14, w:20, h:16}); return; }
     const step = th.moving ? (Math.floor(now / 150) % 2) + 1 : 0;
     g.fillStyle = th.me ? P.accent : P.wall; g.globalAlpha = th.me ? .55 : .25; g.fillRect(Math.round(th.x) - 8, Math.round(th.y) - 2, 16, 4); g.globalAlpha = 1;
@@ -1288,6 +1352,11 @@ function draw(){
   if (S.brew && now < S.brew.until && MAP.me) { const f = 1 - (S.brew.until - now) / S.brew.ms, n = Math.round(f * 6); bubble(c, P, MAP.me.x, MAP.me.y - 46, `${S.brew.label} ${"▓".repeat(n)}${"░".repeat(6 - n)}`, "focus", 140); }
   if (MAP.me && S.view === "office") overlay(MAP.me.x, MAP.me.y, S.myId, true, "คุณ", MAP.me.say, MAP.me.sayAt, MAP.me.emote, S.focus && S.focus.until);
   Object.values(MAP.remote).forEach(r => overlay(r.x, r.y, r.by, false, r.by ? nameOf(r.by) : "ผู้มาเยือน", r.say, r.sayAt, r.emote, r.focus));
+  NPCS.forEach(n => { const st = MAP.npcs[n.id]; if (!st || st.x == null) return;
+    c.font = "700 5.6px 'IBM Plex Sans Thai', sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+    const lbl = `NPC · ${n.name}`, w = c.measureText(lbl).width + 8, hy = st.y - 32;
+    c.fillStyle = "rgba(108,99,255,.85)"; c.fillRect(st.x - w/2, hy - 4.5, w, 9); c.fillStyle = "#ffffff"; c.fillText(lbl, st.x, hy + .3);
+    if (st.say) bubble(c, P, st.x, hy - 6, st.say, "", 120); });
   // confetti
   MAP.fx = MAP.fx.filter(p => now - p.t0 < 1800);
   MAP.fx.forEach(p => { const t = (now - p.t0) / 1000; c.fillStyle = p.c; c.fillRect(p.x + p.vx * t, p.y + p.vy * t + 60 * t * t, 2, 2); });
@@ -1324,6 +1393,7 @@ function initMap(c){
   c.addEventListener("click", e => {
     const p = pos(e), h = hitAt(p);
     if (h && h.id.startsWith("cat:")) { callCat(h.id.slice(4)); return; }
+    if (h && h.id.startsWith("npc:")) { pokeNpc(h.id.slice(4)); return; }
     if (h && h.desk) {
       const seat = seatById("d" + h.slot);
       walkTo(seat.exit, () => sitAt(seat));
@@ -1547,7 +1617,7 @@ function loop(t){
   const dt = Math.min(.05, (t - (MAP.prevT || t)) / 1000); MAP.prevT = t;
   ANIM = Math.floor(t / 110); MAP.anim = ANIM; MAP.last = t;
   if (S.hold && Date.now() > S.hold.until) { S.hold = null; sendPresence(true); }
-  stepMe(dt); stepRemote(dt); stepCats(dt, Date.now()); checkFocus(); draw();
+  stepMe(dt); stepRemote(dt); stepCats(dt, Date.now()); stepNpcs(Date.now()); checkFocus(); draw();
   if (S.focus && ANIM % 9 === 0) renderToolbar();
 }
 
