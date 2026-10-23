@@ -432,7 +432,8 @@ const roomStats = r => {
     doneToday: tasks.filter(t => t.done && (t.doneAt || "").slice(0,10) === TODAY).length,
   };
 };
-const nameOf = id => (S.profiles[id] && S.profiles[id].name) || (id === S.myId ? "คุณ" : "เพื่อนร่วมออฟฟิศ");
+const AI_ID = "ai";
+const nameOf = id => id === AI_ID ? "🤖 Claude" : (S.profiles[id] && S.profiles[id].name) || (id === S.myId ? "คุณ" : "เพื่อนร่วมออฟฟิศ");
 const avatarOf = id => (S.profiles[id] && S.profiles[id].avatarUrl) || "";
 const myRoom = () => S.rooms.find(r => r.id === S.myId);
 
@@ -680,6 +681,7 @@ function render(){
   else if (S.moveTo != null && myRoom()) { modal.hidden = false; body.innerHTML = `<div class="panel"><div class="who"><h2>ย้ายโต๊ะ</h2></div><p>ย้ายห้อง “${esc(myRoom().roomName || "ของคุณ")}” มาที่โต๊ะนี้ใช่ไหม งานและการแต่งโต๊ะจะย้ายตามมาด้วย</p><div class="actions" style="display:flex;gap:8px"><button class="btn primary" id="moveok">ย้ายเลย</button><button class="btn ghost" id="cancel">ยกเลิก</button></div></div>`; }
   else if (S.openRoom && S.rooms.find(x => x.id === S.openRoom)) { modal.hidden = false; renderRoom(body, S.rooms.find(x => x.id === S.openRoom)); }
   else if (S.openBoard) { modal.hidden = false; renderBoard(body); }
+  else if (S.aiTask && allTasks().some(x => x.id === S.aiTask)) { modal.hidden = false; renderAITask(body); }
   else if (S.openInbox) { modal.hidden = false; const mineActs = S.acts.filter(a => (a.to || []).includes(S.myId));
     body.innerHTML = `<div class="panel"><div class="who"><h2>🔔 ถึงคุณ</h2><span class="note">งานที่มอบหมายให้คุณ คอมเมนต์ในงานของคุณ และการ @ถึงคุณ</span></div>
       <ul class="feed" style="max-height:none">${mineActs.map(actLine).join("") || `<li class="note">ยังไม่มีอะไรถึงคุณ</li>`}</ul>
@@ -1270,6 +1272,92 @@ function renderBoard(m){
       : `<div class="board-snip" style="max-height:none">${esc(b.text || "ยังไม่มีประกาศ")}</div><div class="actions"><button class="btn ghost" id="back">ปิด</button></div>`}
   </div>`;
 }
+/* ---------- AI teammate: check the brief, ask what's missing, then do the work ---------- */
+function openAITask(id){
+  const k = allTasks().find(x => x.id === id);
+  S.aiFrom = S.openRoom || S.aiFrom; S.openRoom = null; S.editTask = null; S.aiTask = id;
+  S.aiRun = {phase: k && k.ai && k.ai.output ? "done" : "brief", round:0}; render();
+}
+function taskContext(k){
+  const ans = ((k.ai && k.ai.answers) || []).map(x => `- ${x.q}\n  ตอบ: ${x.a}`).join("\n");
+  return `ลูกค้า: ${clientName(k)}\nงาน: ${k.title}\nกำหนดส่ง: ${k.due || "ไม่ระบุ"}\n${k.note ? "โน้ตในงาน: " + k.note + "\n" : ""}${k.ai && k.ai.brief ? "บรีฟจากผู้ใช้:\n" + k.ai.brief + "\n" : ""}${ans ? "ข้อมูลเพิ่มเติมที่ตอบมาแล้ว:\n" + ans + "\n" : ""}`;
+}
+const AI_SYS = "คุณคือ Claude เพื่อนร่วมทีมในออฟฟิศ (ทีมทำการตลาด/คอนเทนต์/เว็บให้ลูกค้า) ตอบเป็นภาษาไทย ศัพท์เทคนิคใช้อังกฤษได้";
+async function getSample(){ return window.claude && window.claude.use ? window.claude.use("sample") : null; }
+async function aiCheck(force){
+  const k = allTasks().find(x => x.id === S.aiTask); if (!k) return;
+  if (force) return aiWork(true);
+  const sample = await getSample(); if (!sample) { toast("AI ใช้ไม่ได้ในมุมมองนี้ (เปิดใน claude.ai)"); return; }
+  S.aiRun = {phase:"checking", round:(S.aiRun && S.aiRun.round || 0) + 1}; render();
+  try {
+    const r = await sample.json(`${AI_SYS}\nมีคนส่งงานนี้ให้คุณช่วยทำ ตัดสินว่าข้อมูลพอให้ทำร่างแรกที่ใช้ได้จริงหรือยัง\n\n${taskContext(k)}\nตอบ JSON เท่านั้น: {"ready": true|false, "deliverable": "สิ่งที่คุณจะส่งมอบ 1 บรรทัด", "questions": ["คำถามสั้น"]}\nถามเฉพาะสิ่งที่ถ้าไม่รู้แล้วผลงานจะผิดทาง (สูงสุด 4 ข้อ) ถ้าเดาอย่างสมเหตุสมผลได้ให้ ready=true`, {modelTier:"quick"});
+    const qs = (Array.isArray(r && r.questions) ? r.questions : []).filter(q => typeof q === "string" && q.trim()).slice(0, 4);
+    if (r && r.ready === false && qs.length) { S.aiRun = {phase:"questions", round:S.aiRun.round, questions:qs, deliverable:String(r.deliverable || "")}; render(); }
+    else { S.aiRun.deliverable = String((r && r.deliverable) || ""); aiWork(false); }
+  } catch (e) { S.aiRun = {phase:"brief", round:S.aiRun.round, error:aiErr(e)}; render(); }
+}
+function workPrompt(k){
+  return `${AI_SYS}\nทำงานนี้ให้เสร็จเท่าที่ทำได้ด้วยข้อความ ส่งผลงานจริง (เช่น ร่าง copy, แคปชัน, อีเมล, แผน, สคริปต์, checklist, โค้ด) ไม่ใช่คำแนะนำว่าควรทำอย่างไร\nถ้าบางส่วนต้องทำนอกระบบ (เช่น ออกแบบภาพ, โพสต์จริง, โทรหาลูกค้า) ให้ทำส่วนที่ทำได้ให้ครบ แล้วปิดท้ายด้วยหัวข้อ "สิ่งที่คนต้องทำต่อ" สั้นๆ\nถ้าต้องเดาข้อมูลใด ให้ระบุสมมติฐานไว้บรรทัดเดียวท้ายงาน ใช้ข้อความล้วน หัวข้อชัด อ่านง่าย\n\n${taskContext(k)}`;
+}
+async function aiWork(){
+  const k = allTasks().find(x => x.id === S.aiTask); if (!k) return;
+  const sample = await getSample(); if (!sample) { toast("AI ใช้ไม่ได้ในมุมมองนี้ (เปิดใน claude.ai)"); return; }
+  if (S.aiCtl2) S.aiCtl2.abort(); const ctl = S.aiCtl2 = new AbortController();
+  S.aiRun = Object.assign({}, S.aiRun, {phase:"working", text:""}); render();
+  const prompt = workPrompt(k);
+  try {
+    const res = await sample(prompt, {signal:ctl.signal, cache:false, modelTier:"complex", onText: ({text}) => { S.aiRun.text = text; const o = $("#aiTaskOut"); if (o) o.textContent = text; }});
+    finishAI(k, res.text, [{role:"user", content:prompt}, {role:"assistant", content:res.text}], "ทำงาน");
+  } catch (e) { if (e && e.code !== "cancelled") { S.aiRun = {phase:"brief", round:S.aiRun.round, error:aiErr(e), text:e.text || ""}; render(); } }
+}
+async function aiRefine(req){
+  const k = allTasks().find(x => x.id === S.aiTask); if (!k || !k.ai || !k.ai.output) return;
+  const sample = await getSample(); if (!sample) return;
+  if (S.aiCtl2) S.aiCtl2.abort(); const ctl = S.aiCtl2 = new AbortController();
+  const hist = (k.ai.history && k.ai.history.length ? k.ai.history : [{role:"user", content:workPrompt(k)}, {role:"assistant", content:k.ai.output}]).slice(-6);
+  if (hist[0].role !== "user") hist.shift();
+  const msgs = [...hist, {role:"user", content:`ช่วยแก้ผลงานล่าสุดตามนี้ แล้วส่งฉบับเต็มที่แก้แล้วกลับมา: ${req}`}];
+  S.aiRun = {phase:"working", text:"", refine:req}; render();
+  try {
+    const res = await sample(msgs, {signal:ctl.signal, cache:false, modelTier:"complex", onText: ({text}) => { S.aiRun.text = text; const o = $("#aiTaskOut"); if (o) o.textContent = text; }});
+    finishAI(k, res.text, [...msgs, {role:"assistant", content:res.text}], "แก้งาน");
+  } catch (e) { if (e && e.code !== "cancelled") { S.aiRun = {phase:"done", error:aiErr(e)}; render(); } }
+}
+function finishAI(k, text, history, verb){
+  // keep the stored history small: drop the oldest turns, cap each message
+  const h = history.map(m => ({role:m.role, content:String(m.content).slice(0, 12000)})).slice(-6);
+  const ai = Object.assign({}, k.ai || {}, {output:String(text).slice(0, 40000), history:h, at:Date.now(), by:S.myId, versions:((k.ai && k.ai.versions) || 0) + 1});
+  saveTask(k.id, {ai});
+  S.aiRun = {phase:"done"}; render();
+  logAct("ai", `${verb === "แก้งาน" ? "ได้ฉบับแก้" : "ได้ผลงาน"}จาก 🤖 Claude ในงาน "${k.title}"`, [k.owner]);
+  toast("🤖 AI ส่งงานแล้ว");
+}
+function renderAITask(m){
+  const k = allTasks().find(x => x.id === S.aiTask); if (!k) return;
+  const run = S.aiRun || {phase:"brief"}, touch = canTouch(k), out = k.ai && k.ai.output;
+  const head = `<div class="who"><h2>🤖 ส่งงานให้ Claude</h2><span class="note">${esc(clientName(k))} · ${esc(k.title)}${k.due ? " · ส่ง " + esc(thDate(k.due)) : ""}</span></div>`;
+  let bodyHtml = "";
+  if (run.phase === "checking") bodyHtml = `<div class="ai-box"><div class="ai-out">กำลังอ่านบรีฟและเช็กว่าข้อมูลพอไหม…</div></div>`;
+  else if (run.phase === "working") bodyHtml = `<div class="ai-box"><span class="note">${run.refine ? "กำลังแก้ตาม: " + esc(run.refine) : "Claude กำลังทำงาน" + (run.deliverable ? ": " + esc(run.deliverable) : "") + "…"}</span><div class="ai-out" id="aiTaskOut">${esc(run.text || "")}</div></div>`;
+  else if (run.phase === "questions" && touch) bodyHtml = `<form id="aiBriefForm" class="editform">
+      <div class="ai-box"><b>ขอข้อมูลเพิ่มอีกนิด ${run.deliverable ? `เพื่อทำ "${esc(run.deliverable)}"` : ""}</b>
+      ${run.questions.map((q, i) => `<label class="field"><span class="lab">${esc(q)}</span><input type="text" data-q="${esc(q)}" maxlength="400" ${i === 0 ? "autofocus" : ""}></label>`).join("")}</div>
+      <input type="hidden" name="brief" value="${esc((k.ai && k.ai.brief) || "")}">
+      <div class="row"><button class="btn primary" type="submit">ส่งคำตอบให้ AI</button><button class="btn ghost" type="button" id="aiSkip">ไม่ต้องถาม ทำเลย</button></div></form>`;
+  else if (out && run.phase !== "brief") bodyHtml = `<div class="ai-box"><div class="chiprow"><b>ผลงานจาก Claude</b><span class="note" style="margin-left:auto">${k.ai.at ? esc(new Date(k.ai.at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) : ""}${k.ai.versions > 1 ? " · ฉบับที่ " + k.ai.versions : ""}</span></div>
+      <div class="ai-out" id="aiTaskOut">${esc(out)}</div>
+      <div class="chiprow"><button class="btn" id="aiCopy2">คัดลอก</button>${touch ? `<button class="btn ghost" id="aiToNote">ใส่เป็นโน้ตงาน</button><button class="btn ghost" id="aiAgain">แก้บรีฟแล้วทำใหม่</button>` : ""}</div></div>
+      ${touch ? `<form id="aiRefineForm" class="thread" style="margin:0;flex-direction:row"><input type="text" name="req" maxlength="1000" placeholder="สั่งแก้ เช่น ขอสั้นลง / เพิ่มอีก 3 แบบ / โทนสนุกขึ้น" aria-label="สั่งแก้"><button class="btn primary" type="submit">แก้</button></form>` : ""}`;
+  else if (touch) bodyHtml = `<form id="aiBriefForm" class="editform">
+      <label class="field"><span class="lab">เล่าให้ AI ฟังว่าอยากได้อะไร (ยิ่งละเอียด ยิ่งทำได้ตรง)</span>
+      <textarea name="brief" maxlength="4000" rows="7" style="min-height:150px" placeholder="เช่น ขอแคปชัน FB 3 แบบ โปรโมชันลด 20% ถึงสิ้นเดือน กลุ่มเป้าหมายคนทำงานเชียงใหม่ โทนเป็นกันเอง มี CTA ทักแชท">${esc((k.ai && k.ai.brief) || k.note || "")}</textarea></label>
+      ${run.error ? `<p class="note" style="color:var(--danger)">${esc(run.error)}</p>` : ""}
+      <div class="row"><button class="btn primary" type="submit">🤖 ส่งให้ AI</button></div>
+      <span class="note">AI จะเช็กก่อนว่าข้อมูลพอไหม ถ้าไม่พอจะถามกลับเฉพาะที่จำเป็น ผลงานจะเก็บไว้ในงานนี้ให้ทีมเห็น</span></form>`;
+  else bodyHtml = `<div class="ai-box"><div class="ai-out">${esc(out || "ยังไม่มีผลงานจาก AI ในงานนี้")}</div></div>`;
+  m.innerHTML = `<div class="panel" id="aiPanel">${head}${bodyHtml}<div class="actions"><button class="btn ghost" id="back">${S.aiFrom ? "← กลับไปห้อง" : "ปิด"}</button></div></div>`;
+  const af = m.querySelector("[autofocus]"); if (af) af.focus();
+}
 function taskLi(t, opts){
   const own = isOwnerOf(t), touch = canTouch(t);
   if (own && S.editTask === t.id) {
@@ -1277,7 +1365,7 @@ function taskLi(t, opts){
     return `<li class="task editing"><form class="editform" data-edittask="${esc(t.id)}">
       <input type="text" name="title" maxlength="140" required value="${esc(t.title)}" aria-label="ชื่องาน">
       <div class="row"><input type="date" name="due" value="${esc(t.due || "")}" aria-label="กำหนดส่ง">
-        <select name="assignee" aria-label="มอบหมายให้"><option value="">ไม่ได้มอบหมาย</option>${members().filter(id => id !== S.myId).map(opt).join("")}</select></div>
+        <select name="assignee" aria-label="มอบหมายให้"><option value="">ไม่ได้มอบหมาย</option>${opt(AI_ID)}${members().filter(id => id !== S.myId).map(opt).join("")}</select></div>
       <textarea name="note" maxlength="600" placeholder="โน้ต / รายละเอียด (ไม่บังคับ)" aria-label="โน้ต">${esc(t.note || "")}</textarea>
       <div class="row"><button class="btn primary" type="submit">บันทึก</button><button class="btn ghost" type="button" data-canceledit="1">ยกเลิก</button></div>
     </form></li>`;
@@ -1286,6 +1374,8 @@ function taskLi(t, opts){
   const chips = [];
   if (opts && opts.from) chips.push(`<span class="mini-chip">จาก ${esc(nameOf(t.owner))} · ${esc(clientName(t))}</span>`);
   if (t.assignee && !(opts && opts.from)) chips.push(`<span class="mini-chip asg">→ ${esc(t.assignee === S.myId ? "คุณ" : nameOf(t.assignee))}</span>`);
+  if (t.ai && t.ai.output) chips.push(`<button class="mini-chip ai-chip" data-aitask="${esc(t.id)}">🤖 ผลงาน AI</button>`);
+  else if (t.assignee === AI_ID) chips.push(`<button class="mini-chip ai-chip" data-aitask="${esc(t.id)}">🤖 รอข้อมูลให้ AI</button>`);
   if (cm.length) chips.push(`<button class="mini-chip" data-thread="${esc(t.id)}" aria-expanded="${S.openThread === t.id}">💬 ${cm.length}</button>`);
   const thread = S.openThread === t.id ? `<div class="thread">
       ${cm.map(c => `<div class="c"><b>${esc(c.by === S.myId ? "คุณ" : nameOf(c.by))}</b>${esc(c.text)}<time>${new Date(c.at).toLocaleString("th-TH", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</time></div>`).join("") || `<span class="note">ยังไม่มีคอมเมนต์</span>`}
@@ -1296,6 +1386,7 @@ function taskLi(t, opts){
     <span class="t">${esc(t.title)}${t.done ? "" : `<span class="due ${d.cls}">${esc(d.label)}</span>`}${t.note ? `<span class="tn">${esc(t.note)}</span>` : ""}
       ${chips.length ? `<span class="meta">${chips.join("")}</span>` : ""}${thread}</span>
     ${!cm.length && canWrite() ? `<button class="edt" data-thread="${esc(t.id)}" aria-label="คอมเมนต์" title="คอมเมนต์">💬</button>` : ""}
+    ${touch && !t.done ? `<button class="ai" data-aitask="${esc(t.id)}" aria-label="ส่งงานนี้ให้ AI ช่วยทำ" title="ส่งให้ AI ช่วยทำ">🤖</button>` : ""}
     ${own && !t.done ? `<button class="ai" data-split="${esc(t.id)}" aria-label="ให้ AI แตกงานนี้เป็นงานย่อย" title="AI แตกงาน">✨</button>` : ""}
     ${own ? `<button class="edt" data-edit="${esc(t.id)}" aria-label="แก้ไขงาน">✎</button><button class="del" data-del="${esc(t.id)}" aria-label="ลบงาน">×</button>` : ""}</li>`;
 }
@@ -1398,6 +1489,11 @@ document.addEventListener("click", e => {
   if (t.dataset.emote) return emote(+t.dataset.emote);
   if (t.dataset.thread) { S.openThread = S.openThread === t.dataset.thread ? null : t.dataset.thread; render(); const i = document.querySelector(`form[data-comment="${CSS.escape(t.dataset.thread)}"] input`); if (i) i.focus(); return; }
   if (t.dataset.split) return breakDown(t.dataset.split);
+  if (t.dataset.aitask) return openAITask(t.dataset.aitask);
+  if (t.id === "aiSkip") return aiWork(false);
+  if (t.id === "aiAgain") { S.aiRun = {phase:"brief"}; return render(); }
+  if (t.id === "aiCopy2") { const k = allTasks().find(x => x.id === S.aiTask), txt = k && k.ai && k.ai.output || ""; if (!txt) return; try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); } return; }
+  if (t.id === "aiToNote") { const k = allTasks().find(x => x.id === S.aiTask); if (!k || !canTouch(k)) return; saveTask(k.id, {note:(k.ai.output || "").slice(0, 600)}); toast("ใส่เป็นโน้ตงานแล้ว (600 ตัวอักษรแรก)"); return; }
   if (t.dataset.ai) return runAI(t.dataset.ai);
   if (t.id === "aiCopy") { const txt = ($("#aiOut") || {}).textContent || ""; if (!txt.trim()) return; try { navigator.clipboard.writeText(txt).then(() => toast("คัดลอกแล้ว"), () => fallbackCopy(txt)); } catch { fallbackCopy(txt); } return; }
   if (t.id === "prompt") return openNear();
@@ -1407,7 +1503,7 @@ document.addEventListener("click", e => {
   if (t.id === "tab-summary") { S.view = "summary"; return render(); }
   if (t.dataset.room) { S.openRoom = t.dataset.room; return render(); }
   if (t.id === "join") { S.editing = true; return render(); }
-  if (t.id === "back" || t.id === "mclose") { S.editTask = null; S.openThread = null; S.openBoard = false; S.openInbox = false; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
+  if (t.id === "back" || t.id === "mclose") { if (S.aiTask) { const back = S.aiFrom; S.aiTask = null; if (S.aiCtl2) S.aiCtl2.abort(); if (back && t.id === "back") { S.openRoom = back; return render(); } } S.editTask = null; S.openThread = null; S.openBoard = false; S.openInbox = false; S.openRoom = null; S.editing = false; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "edit") { S.openRoom = null; S.editing = true; S.setupLook = Number(myRoom().avatar)||0; S.setupDeco = decoOf(myRoom()); return render(); }
   if (t.id === "cancel") { S.editing = false; S.openRoom = null; S.moveTo = null; S.setupDesk = null; return render(); }
   if (t.id === "moveok") { const to = S.moveTo; S.moveTo = null; saveMine(r => { r.desk = to; }); toast("ย้ายโต๊ะแล้ว"); return; }
@@ -1479,10 +1575,21 @@ document.addEventListener("submit", e => {
     const prev = allTasks().find(x => x.id === id) || {}, asg = f.elements.assignee ? (f.elements.assignee.value || null) : (prev.assignee || null);
     S.editTask = null;
     saveTask(id, {title, due: f.elements.due.value || null, note: f.elements.note.value.trim().slice(0, 600), assignee: asg});
+    if (asg === AI_ID && prev.assignee !== AI_ID) { logAct("assign", `ส่งงาน "${title}" ให้ 🤖 Claude ช่วยทำ`); openAITask(id); return; }
     if (asg && asg !== prev.assignee) { logAct("assign", `มอบงาน "${title}" ให้ ${nameOf(asg)}`, [asg]); toast(`มอบงานให้ ${nameOf(asg)} แล้ว`); }
     else if (!asg && prev.assignee) logAct("assign", `ดึงงาน "${title}" กลับมาทำเอง`, [prev.assignee]);
     return;
   }
+  if (f.id === "aiBriefForm") {
+    const k = allTasks().find(x => x.id === S.aiTask); if (!k || !canTouch(k)) return;
+    const brief = f.elements.brief.value.trim().slice(0, 4000);
+    const answers = [...f.querySelectorAll("[data-q]")].map(i => ({q:i.dataset.q, a:i.value.trim()})).filter(x => x.a);
+    const prevAns = (k.ai && k.ai.answers) || [];
+    saveTask(k.id, {ai:Object.assign({}, k.ai || {}, {brief, answers:[...prevAns, ...answers].slice(-20)})});
+    aiCheck(answers.length > 0 && S.aiRun && S.aiRun.round >= 1);
+    return;
+  }
+  if (f.id === "aiRefineForm") { const v = f.elements.req.value.trim(); if (v) aiRefine(v.slice(0, 1000)); return; }
   if (f.dataset.comment) {
     const id = f.dataset.comment, inp = f.querySelector("input"), text = inp.value.replace(/\s+/g, " ").trim().slice(0, 300);
     const k = allTasks().find(x => x.id === id); if (!text || !k || !canWrite()) return;
@@ -1519,7 +1626,7 @@ render();
   // keep typing intact: don't re-render while an input is focused
   const softRender = () => {
     const a = document.activeElement;
-    if (a && a.matches && a.matches(".addform input, #setup input, #say, .editform input, .editform textarea, .editform select, form[data-comment] input")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
+    if (a && a.matches && a.matches(".addform input, #setup input, #say, .editform input, .editform textarea, .editform select, form[data-comment] input, #aiPanel textarea, #aiPanel input")) { renderStats(); if (MAP.canvas) layoutMap(); return; }
     render();
   };
   db.collection("rooms").onSnapshot(async snap => {

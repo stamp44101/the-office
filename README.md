@@ -9,7 +9,7 @@ Top-down pixel office for team task tracking. Runs as a claude.ai Artifact (sing
 | path | what |
 |---|---|
 | `rooms/<userId>` | desk, avatar, deco, clients (legacy `tasks[]` auto-migrates out) |
-| `tasks/<id>` | owner, clientId, title, due, note, done, doneAt, doneBy, assignee, comments[], parent |
+| `tasks/<id>` | owner, clientId, title, due, note, done, doneAt, doneBy, assignee (`ai` = Claude), comments[], parent, ai{brief, answers[], output, history[], versions} |
 | `chat/<id>` | by, text, at — pruned after 14 days |
 | `activity/<id>` | by, kind, text, to[], at — pruned after 14 days |
 | `board/main` | team board text |
