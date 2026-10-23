@@ -35,6 +35,7 @@
 .game{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 @media (min-width:1080px){.game{grid-template-columns:minmax(0,1fr) 280px}}
 .stage{display:flex;flex-direction:column;gap:8px;min-width:0}
+.banner{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#ffc83d;color:#1f2a44;border:2px solid #36407a;border-radius:12px;padding:5px 14px;font-weight:700;font-size:14px;box-shadow:0 3px 0 #36407a;max-width:calc(100% - 20px);text-align:center;z-index:3}
 .mapwrap{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);border:4px solid var(--wall);background:var(--wallTop);align-self:stretch;display:flex;justify-content:center}
 #map{display:block;image-rendering:pixelated;cursor:crosshair;touch-action:none}
 .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
@@ -453,7 +454,7 @@ function drawDesk(g, P, dx, dy, o){
 
 /* ---------- state ---------- */
 const S = {db:null, user:null, room:null, myId:null, rooms:[], profiles:{}, ready:false, noDb:false,
-           view:"office", openRoom:null, editing:false, miniModal:null, focus:null, hold:null, brew:null, myCat:null, track:0, tts:false, moveTo:null, setupDesk:null, setupDeco:null, sumMode:"person", setupLook:0, readOnly:false};
+           view:"office", openRoom:null, editing:false, miniModal:null, focus:null, hold:null, brew:null, myCat:null, track:0, tts:false, allCats:false, festOverride:null, partyUntil:0, moveTo:null, setupDesk:null, setupDeco:null, sumMode:"person", setupLook:0, readOnly:false};
 
 const roomStats = r => {
   const tasks = (r.tasks || []);
@@ -669,7 +670,7 @@ function render(){
     m.innerHTML = `<div class="game">
       <div class="stage" id="stage">
         <div class="toolbar" id="toolbar"></div>
-        <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas></div>
+        <div class="mapwrap"><canvas id="map" aria-label="แผนที่ออฟฟิศ เดินด้วยปุ่มลูกศรหรือแตะพื้น"></canvas><div class="banner" id="banner" hidden></div></div>
         <div class="ctrlrow">
           <div class="dpad" aria-label="ปุ่มเดิน">
             <span></span><button data-dir="up" aria-label="ขึ้น">▲</button><span></span>
@@ -976,6 +977,7 @@ function catAuto(cat, now){
 }
 function catFollowers(){
   const claims = {};
+  if (S.allCats) CATS.forEach(c => { claims[c.id] = [{peer:S.myPeer || "~me", me:true}]; });
   if (S.myCat) claims[S.myCat] = [{peer:S.myPeer || "~me", me:true}];
   Object.entries(MAP.remote).forEach(([peer, r]) => { if (r.cat && catById(r.cat)) (claims[r.cat] = claims[r.cat] || []).push({peer, r}); });
   const out = {};
@@ -1042,9 +1044,16 @@ function npcAuto(n, now){
   return {x:p.x, y:p.y + 6, moving:true, face:p.face, dir:Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "up" : "down") : "side"};
 }
 function stepNpcs(now){
-  NPCS.forEach(n => {
-    const a = npcAuto(n, now), st = MAP.npcs[n.id] || (MAP.npcs[n.id] = {});
-    Object.assign(st, a);
+  NPCS.forEach((n, i) => {
+    const st = MAP.npcs[n.id] || (MAP.npcs[n.id] = {});
+    if (S.npcFollow && MAP.me) {
+      const ang = i / NPCS.length * Math.PI * 2, tx = MAP.me.x + Math.cos(ang) * 26, ty = MAP.me.y + 10 + Math.sin(ang) * 20;
+      const dx = tx - (st.x || tx), dy = ty - (st.y || ty), d = Math.hypot(dx, dy);
+      st.x = (st.x || tx) + (d > 2 ? dx / d * Math.min(d, 2.4) : 0); st.y = (st.y || ty) + (d > 2 ? dy / d * Math.min(d, 2.4) : 0);
+      st.moving = d > 2; st.face = dx < 0 ? "left" : "right"; st.dir = Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "up" : "down") : "side"; st.say = "";
+      return;
+    }
+    const a = npcAuto(n, now); Object.assign(st, a);
     const slot = Math.floor((now + hashStr(n.id) % 9000) / 13000);
     if (!st.clickAt || now - st.clickAt > 4500) { st.say = (slot % 3 === 0 && (now + hashStr(n.id) % 9000) % 13000 < 4500) ? n.lines[hashStr(n.id + slot) % n.lines.length] : ""; }
   });
@@ -1127,6 +1136,7 @@ function callCat(id){
 
 /* ---------- festival + time of day ---------- */
 function festival(){
+  if (S.festOverride !== null) return S.festOverride || null;
   const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
   if (m === 10 && day >= 15) return "halloween";
   if (m === 11 && day >= 18 && day <= 28) return "loykrathong";
@@ -1258,7 +1268,7 @@ function drawScene(now){
     for (let x = 0, i = 0; x < W; x += 10, i++) { g.fillStyle = cols[i % 2]; g.beginPath(); g.moveTo(x, 2*T - 1); g.lineTo(x + 10, 2*T - 1); g.lineTo(x + 5, 2*T + 6); g.closePath(); g.fill(); }
     if (fest === "halloween") drawHalloween(g, P, now, phase);
     if (fest === "loykrathong") { R_(g,"#2ecc71",so.x + 16, so.y + 30, 14, 6); R_(g,"#ff4f9a",so.x + 20, so.y + 27, 6, 4); R_(g,"#ffe066",so.x + 22, so.y + 23 - (ANIM%2), 2, 3); [[5.3,6],[11.2,8],[29.2,5]].forEach(([lx, ly]) => { R_(g,"#ffae1a",lx*T,ly,8,10); R_(g,"#ffe066",lx*T+2,ly+2,4,6); }); }
-    if (fest === "christmas") ITEM.xmas(g, P, 28.6*T, H - 3.4*T);
+    if (fest === "christmas" && ITEM.xmas) ITEM.xmas(g, P, 28.6*T, H - 3.4*T);
     if (fest === "songkran") { R_(g,"#c98d5e",so.x + 18, so.y + 28, 12, 6); R_(g,"#9ce8ff",so.x + 19, so.y + 28, 10, 2); }
   }
   // desks
@@ -1414,6 +1424,7 @@ function draw(){
   MAP.fx = MAP.fx.filter(p => now - p.t0 < 1800);
   MAP.fx.forEach(p => { const t = (now - p.t0) / 1000; c.fillStyle = p.c; c.fillRect(p.x + p.vx * t, p.y + p.vy * t + 60 * t * t, 2, 2); });
 }
+function showBanner(text){ const bn = $("#banner"); if (!bn) { toast(text); return; } bn.textContent = text; bn.hidden = false; clearTimeout(MAP.bt); MAP.bt = setTimeout(() => bn.hidden = true, 4200); }
 function confetti(x, y){
   const cs = ["#ff4f9a","#ffc83d","#13c4ae","#4c7dff","#ff4757"];
   for (let i = 0; i < 26; i++) MAP.fx.push({x, y:y - 20, vx:(Math.random() - .5) * 70, vy:-30 - Math.random() * 50, c:cs[i % cs.length], t0:Date.now()});
@@ -1445,6 +1456,7 @@ function initMap(c){
   c.addEventListener("pointerleave", () => { MAP.hover = null; });
   c.addEventListener("click", e => {
     const p = pos(e), h = hitAt(p);
+    if (S.teleport && !h && !blocked(p.x, p.y)) { if (MAP.me.sit) standUp(); MAP.me.x = p.x; MAP.me.y = p.y; MAP.target = null; MAP.path = null; sendPresence(true); return; }
     if (h && h.id.startsWith("cat:")) { callCat(h.id.slice(4)); return; }
     if (h && h.id.startsWith("npc:")) { pokeNpc(h.id.slice(4)); return; }
     if (h && h.desk) {
@@ -1673,7 +1685,7 @@ function loop(t){
   const dt = Math.min(.05, (t - (MAP.prevT || t)) / 1000); MAP.prevT = t;
   ANIM = Math.floor(t / 110); MAP.anim = ANIM; MAP.last = t;
   if (S.hold && Date.now() > S.hold.until) { S.hold = null; sendPresence(true); }
-  stepMe(dt); stepRemote(dt); stepCats(dt, Date.now()); stepNpcs(Date.now()); checkFocus(); draw();
+  stepMe(dt); stepRemote(dt); stepCats(dt, Date.now()); stepNpcs(Date.now()); checkFocus(); if (S.partyUntil > Date.now() && ANIM % 3 === 0) confetti(40 + Math.random() * (MAP.w - 80), 30 + Math.random() * 40); draw();
   if (S.focus && ANIM % 9 === 0) renderToolbar();
 }
 
@@ -1728,6 +1740,26 @@ function mSnack(b){
   b.querySelectorAll("[data-sic]").forEach(s => s.replaceWith(iconCanvas(g => drawSnack(g, s.dataset.sic, 2, 3, 1))));
 }
 /* dev cheats (staging): flat XP bonus on rooms/<me>.xpBonus, plus quick toggles */
+function devBanner(text){ if (S.room) S.room.presence({cheer:{t:clean(text, 60), at:Date.now()}}); showBanner("🎉 คุณ" + clean(text, 60)); confetti(MAP.me.x, MAP.me.y); }
+function devEmoteRain(){ [..."😂🔥👏❤️🎉👍😴☕"].forEach((e, i) => setTimeout(() => emote(e), i * 250)); }
+function devParty(sec){ S.partyUntil = Date.now() + (sec || 20) * 1000; if (!MUSIC.on) setMusic(true, 0); emote("🎉"); toast("โหมดปาร์ตี้!"); }
+function devUnlockAll(){ const rare = Object.values(DECO).flatMap(l => l.filter(x => x[2]).map(x => x[0])); saveMine(r => { r.owned = [...new Set([...(r.owned || []), ...rare])]; }); toast("ปลดล็อกของแต่งโต๊ะครบ"); }
+function devStreak(days){ const cid = (myRoom() && (myRoom().clients || [])[0]) ? myRoom().clients[0].id : null;
+  saveMine(r => { const keep = (r.tasks || []).filter(t => !String(t.id).startsWith("streak"));
+    const add = Array.from({length:days}, (_, n) => ({id:"streak" + n, clientId:cid, title:"สตรีค " + n, done:true, doneDay:ymd(new Date(Date.now() - n*864e5)), doneAt:new Date(Date.now() - n*864e5).toISOString(), rewarded:true}));
+    r.tasks = [...keep, ...add]; });
+  toast(`🔥 สตรีค ${days} วัน`); }
+function devClearStreak(){ saveMine(r => { r.tasks = (r.tasks || []).filter(t => !String(t.id).startsWith("streak")); }); toast("ล้างสตรีคแล้ว"); }
+function devRainbow(){ if (S.rainbowTm) { clearInterval(S.rainbowTm); S.rainbowTm = null; if (S.rainbowOrig != null) saveMine(r => { r.avatar = S.rainbowOrig; }); toast("หยุดเปลี่ยนร่าง"); return; }
+  S.rainbowOrig = Number((myRoom() || {}).avatar) || 0; let k = 0; S.rainbowTm = setInterval(() => saveMine(r => { r.avatar = k++ % LOOKS.length; }), 1500); toast("เปลี่ยนร่างทุก 1.5 วิ"); }
+function devFill(nTasks){ const r0 = myRoom(); if (!r0) { toast("จองโต๊ะก่อน"); return; }
+  const cid = (r0.clients || [])[0] ? r0.clients[0].id : null, now = new Date().toISOString();
+  saveMine(r => { const base = (r.tasks || []).filter(t => !/^งานโกง \d+$/.test(t.title)).length;
+    const add = Array.from({length:nTasks}, (_, i) => ({id:"fill" + rid8(), clientId:cid, title:"งานโกง " + (base + i + 1), due:null, done:false, doneAt:null, createdAt:now}));
+    r.tasks = [...(r.tasks || []), ...add]; });
+  toast(`เติม ${nTasks} งาน`); }
+function devClearFill(){ saveMine(r => { r.tasks = (r.tasks || []).filter(t => !/^งานโกง \d+$/.test(t.title)); }); toast("ล้างงานโกงแล้ว"); }
+const rid8 = () => Math.random().toString(36).slice(2, 10);
 function setLevel(lv){
   lv = Math.max(1, Math.min(999, Math.floor(Number(lv) || 1)));
   const base = progOf(S.myId).xp - (Number((S.rawRooms.find(r => r.id === S.myId) || {}).xpBonus) || 0);
@@ -1737,17 +1769,50 @@ function setLevel(lv){
 }
 function mDev(b){
   const p = progOf(S.myId), bonus = Number((S.rawRooms.find(r => r.id === S.myId) || {}).xpBonus) || 0;
-  b.innerHTML = `<div class="panel"><h2>🛠 เครื่องมือโกง</h2>
-    <p class="note">ตอนนี้ Lv.${p.level} · ${p.xp} XP${bonus ? ` (โบนัสโกง ${bonus})` : ""} · เพื่อนในออฟฟิศเห็นเลเวลนี้ด้วย</p>
-    <div class="field"><span class="lab">ตั้งเลเวล</span><div class="btnrow">${[5,10,50,100,200,999].map(n => `<button class="btn ${n === 200 ? "primary" : ""}" data-devlv="${n}">Lv${n}</button>`).join("")}</div></div>
-    <form class="addform" id="devLvForm"><input type="text" name="lv" inputmode="numeric" maxlength="3" placeholder="พิมพ์เลเวลเอง 1–999" aria-label="เลเวล"><button class="btn primary" type="submit">ตั้ง</button></form>
-    <div class="field"><span class="lab">อื่นๆ</span><div class="btnrow">
-      <button class="btn" data-dev="clear" ${bonus ? "" : "disabled"}>ล้างโบนัส กลับ XP จริง</button>
-      <button class="btn" data-dev="focus" ${S.focus ? "" : "disabled"}>จบโฟกัสทันที</button>
-      <button class="btn" data-dev="cats">เรียกแมวตัวที่ว่าง</button>
+  const fest = festival(), sp = S.speedMul || 1;
+  const tog = (on, key, label) => `<button class="btn ${on ? "primary" : ""}" data-devtog="${key}">${esc(label)}</button>`;
+  b.innerHTML = `<div class="panel"><h2>🛠 เครื่องมือโกง · เซิฟเถื่อน</h2>
+    <p class="note">ตอนนี้ Lv.${p.level} · ${p.xp} XP${bonus ? ` (โบนัส ${bonus})` : ""} · เพื่อนเห็นทุกอย่าง</p>
+
+    <div class="field"><span class="lab">ตั้งเลเวล</span><div class="btnrow">${[5,10,50,100,200,999].map(n => `<button class="btn ${n === 200 ? "primary" : ""}" data-devlv="${n}">Lv${n}</button>`).join("")}</div>
+    <form class="addform" id="devLvForm"><input type="text" name="lv" inputmode="numeric" maxlength="3" placeholder="พิมพ์เลเวลเอง 1–999"><button class="btn primary" type="submit">ตั้ง</button></form></div>
+
+    <div class="field"><span class="lab">โชว์ / อีโมต</span><div class="btnrow">
+      <button class="btn" id="devBannerBtn">🎉 แบนเนอร์ประกาศ</button>
+      <button class="btn" data-dev="emrain">😂 ฝนอีโมต</button>
+      ${tog(S.partyUntil > Date.now(), "party", "🎉 โหมดปาร์ตี้")}
+      <button class="btn" data-dev="focusnow" ${S.focus ? "" : "disabled"}>⏱ จบโฟกัส</button>
     </div></div>
-    <div class="field"><span class="lab">ความเร็วเดิน (ตอนนี้ ${S.speedMul || 1}x)</span><div class="btnrow">${[1,2,3,5,8].map(n => `<button class="btn ${(S.speedMul || 1) === n ? "primary" : ""}" data-devspeed="${n}">${n}x</button>`).join("")}</div></div>
-    <p class="note">คีย์ลัด: Alt+Shift+L = Lv200 · Alt+Shift+K = ล้างโบนัส</p></div>`;
+
+    <div class="field"><span class="lab">ตัวละคร</span><div class="btnrow">
+      ${tog(S.teleport, "teleport", "📍 เทเลพอร์ต (คลิกพื้น)")}
+      ${tog(!!S.rainbowTm, "rainbow", "🌈 เปลี่ยนร่าง")}
+      <button class="btn" data-dev="unlock">🏆 ปลดล็อกของแต่ง</button>
+    </div></div>
+
+    <div class="field"><span class="lab">ความเร็วเดิน (${sp}x)</span><div class="btnrow">${[1,2,3,5,8].map(n => `<button class="btn ${sp === n ? "primary" : ""}" data-devspeed="${n}">${n}x</button>`).join("")}</div></div>
+
+    <div class="field"><span class="lab">แมว & NPC</span><div class="btnrow">
+      ${tog(S.allCats, "allcats", "🐈 เรียกแมวทั้งฝูง")}
+      ${tog(S.npcFollow, "npcfollow", "🧙 NPC เดินตาม")}
+    </div></div>
+
+    <div class="field"><span class="lab">🔥 สตรีค</span><div class="btnrow">${[7,30,99].map(n => `<button class="btn" data-devstreak="${n}">${n} วัน</button>`).join("")}<button class="btn" data-dev="clearstreak">ล้าง</button></div></div>
+
+    <div class="field"><span class="lab">เทศกาล</span><div class="btnrow">
+      ${["", "halloween", "loykrathong", "christmas", "newyear", "songkran"].map(f => `<button class="btn ${(S.festOverride === null ? "" : (fest === f || (f === "" && !fest))) ? "primary" : ""}" data-devfest="${f}">${f ? esc(FEST_NAME[f]) : "ปิด"}</button>`).join("")}
+      <button class="btn ${S.festOverride === null ? "primary" : ""}" data-devfest="auto">อัตโนมัติ</button>
+    </div></div>
+
+    <div class="field"><span class="lab">งานจำลอง (ทดสอบโหลด)</span><div class="btnrow">${[50,100,200,999].map(n => `<button class="btn" data-devfill="${n}">+${n}</button>`).join("")}<button class="btn" data-dev="clearfill">ล้าง</button></div>
+    <p class="note">งานเยอะทำหน้าโหลดช้า และเพื่อนเห็น "ค้าง N" ด้วย</p></div>
+
+    <div class="field"><span class="lab">อื่นๆ</span><div class="btnrow">
+      <button class="btn" data-dev="clearbonus" ${bonus ? "" : "disabled"}>ล้างโบนัส XP</button>
+      <button class="btn" data-dev="cats">เรียกแมวตัวว่าง</button>
+    </div>
+    <p class="note">คีย์ลัด: Alt+Shift+L = Lv200 · Alt+Shift+K = ล้างโบนัส · ทุกอย่างมีผลเฉพาะห้องคุณ</p></div>`;
+  const bb = b.querySelector("#devBannerBtn"); if (bb) bb.onclick = () => devBanner(prompt("ข้อความบนแบนเนอร์", "ปิดงาน 999 งานในวันเดียว!") || "เย้!");
 }
 function mVoice(b){
   const has = "speechSynthesis" in window;
@@ -1810,6 +1875,8 @@ function connectRoom(room){
         if (r.sayInit) { r.say = text; r.sayAt = Date.now(); if (!S.db && !say.emo) pushChat(r.by, text, false); }
         else if (Date.now() - Number(say.at) < 7000) { r.say = text; r.sayAt = Date.now(); }
       }
+      const ch = pr.cheer;
+      if (ch && typeof ch.t === "string" && ch.at !== r.cheerKey) { r.cheerKey = ch.at; if (r.sayInit && Date.now() - Number(ch.at) < 9000) { showBanner(`🎉 ${r.by ? nameOf(r.by) : "ผู้มาเยือน"} ${clean(ch.t, 60)}`); confetti(r.x, r.y); } }
       r.sayInit = true;
     });
     Object.keys(MAP.remote).forEach(k => { if (!seen.has(k)) delete MAP.remote[k]; });
@@ -2220,6 +2287,22 @@ document.addEventListener("click", e => {
   if (t.id === "btnVoice") return openModal({kind:"voice"});
   if (t.id === "btnDev") return openModal({kind:"dev"});
   if (t.dataset.devspeed) { S.speedMul = +t.dataset.devspeed; toast(`dev: เดินเร็ว ${S.speedMul}x`); return render(); }
+  if (t.dataset.devtog) { const k = t.dataset.devtog;
+    if (k === "party") devParty(20);
+    else if (k === "teleport") { S.teleport = !S.teleport; toast(S.teleport ? "เทเลพอร์ต: คลิกพื้นเพื่อวาร์ป" : "ปิดเทเลพอร์ต"); }
+    else if (k === "rainbow") devRainbow();
+    else if (k === "allcats") { S.allCats = !S.allCats; if (!S.allCats) S.myCat = null; sendPresence(true); toast(S.allCats ? "แมวทั้งฝูงตามแล้ว" : "ปล่อยแมวกลับ"); }
+    else if (k === "npcfollow") { S.npcFollow = !S.npcFollow; toast(S.npcFollow ? "NPC เดินตามแล้ว" : "NPC กลับไปเดินเล่น"); }
+    render(); renderToolbar(); return; }
+  if (t.dataset.dev === "emrain") { devEmoteRain(); return; }
+  if (t.dataset.dev === "focusnow") { if (S.focus) S.focus.until = Date.now(); closeModal(); return; }
+  if (t.dataset.dev === "unlock") { devUnlockAll(); return; }
+  if (t.dataset.dev === "clearbonus") { saveMine(r => { delete r.xpBonus; }); toast("dev: ล้างโบนัสแล้ว"); return render(); }
+  if (t.dataset.dev === "clearstreak") { devClearStreak(); return; }
+  if (t.dataset.dev === "clearfill") { devClearFill(); return; }
+  if (t.dataset.devstreak) { devStreak(+t.dataset.devstreak); return; }
+  if (t.dataset.devfill) { devFill(+t.dataset.devfill); return; }
+  if (t.dataset.devfest != null) { const f = t.dataset.devfest; S.festOverride = f === "auto" ? null : f; toast(f === "auto" ? "เทศกาล: อัตโนมัติ" : (f ? "เทศกาล: " + FEST_NAME[f] : "ปิดเทศกาล")); sendPresence(true); render(); renderToolbar(); return; }
   if (t.dataset.devlv) { setLevel(+t.dataset.devlv); return render(); }
   if (t.dataset.dev === "clear") { saveMine(r => { delete r.xpBonus; }); toast("dev: ล้างโบนัสแล้ว"); return render(); }
   if (t.dataset.dev === "focus") { if (S.focus) S.focus.until = Date.now(); closeModal(); return; }
