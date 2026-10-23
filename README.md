@@ -19,4 +19,4 @@ XP / level / streak are derived from finished tasks (nothing extra stored). Deco
 ## World (synced from production look)
 Map, lounge, coffee machine, snack corner, meeting/sofa seats, office cats, festival decor (Halloween etc.), focus timer, radio (3 generated tracks) and read-chat-aloud are ported from the production artifact. Coins/shop/missions are not: XP stays derived from finished tasks.
 
-Dev cheat (staging): `Alt+Shift+L` sets `rooms/<me>.xpBonus` to Lv200, `Alt+Shift+K` clears it.
+Dev cheats (staging): toolbar "🛠 โกง" menu — set level (presets or 1–999), clear bonus, finish focus now, call a free cat. Shortcuts `Alt+Shift+L` (Lv200) / `Alt+Shift+K` (clear). Level is a flat `rooms/<me>.xpBonus` on top of task XP.

@@ -705,7 +705,7 @@ function render(){
       <div class="actions"><button class="btn ghost" id="back">ปิด</button></div></div>`; }
   else if (S.miniModal) { modal.hidden = false; renderMini(body); }
   else { S.openRoom = null; modal.hidden = true; }
-  const mc = modal.querySelector(".modal-card"); if (mc) mc.classList.toggle("narrow", !!S.miniModal && !modal.hidden && ["focus","radio","voice","coffee","snack"].includes(S.miniModal.kind));
+  const mc = modal.querySelector(".modal-card"); if (mc) mc.classList.toggle("narrow", !!S.miniModal && !modal.hidden && ["focus","radio","voice","coffee","snack","dev"].includes(S.miniModal.kind));
   if (!modal.hidden && !wasOpen) modal.querySelector(".modal-card").scrollTop = 0;
 }
 
@@ -1377,7 +1377,7 @@ const typing = () => { const a = document.activeElement; return a && (a.tagName 
 // dev cheat (staging): Alt+Shift+L → your XP jumps to Lv200, Alt+Shift+K → remove the bonus
 addEventListener("keydown", e => {
   if (!e.altKey || !e.shiftKey || typing() || !S.myId || !S.db || !S.rawRooms.some(r => r.id === S.myId)) return;
-  if (e.code === "KeyL") { e.preventDefault(); saveMine(r => { r.xpBonus = xpForLevel(200); }); toast("dev: Lv200"); }
+  if (e.code === "KeyL") { e.preventDefault(); setLevel(200); }
   else if (e.code === "KeyK") { e.preventDefault(); saveMine(r => { delete r.xpBonus; }); toast("dev: ล้าง XP โบนัสแล้ว"); }
 });
 addEventListener("keydown", e => {
@@ -1560,6 +1560,7 @@ function renderToolbar(){
       <button class="pbtn ${f ? "focus-on" : ""}" id="btnFocus">${f ? `⏱ ${mmss(f.until - Date.now())} หยุด` : "⏱ โฟกัส"}</button>
       <button class="pbtn" id="btnCats">🐈 แมว${S.myCat ? `: ${esc(catById(S.myCat).name)}` : ""}</button>
       <button class="pbtn ${S.tts ? "focus-on" : ""}" id="btnVoice">🎙 คุยเสียง</button>
+      ${myRoom() && !S.readOnly ? `<button class="pbtn" id="btnDev">🛠 โกง</button>` : ""}
       <button class="pbtn" id="btnRadio" aria-pressed="${MUSIC.on}">♪ ${MUSIC.on ? esc(TRACKS[S.track].name) : "วิทยุ"}</button>
       <button class="pbtn" id="bell" aria-label="การแจ้งเตือน">🔔<span id="bellN">${n ? Math.min(n, 99) : ""}</span></button>
       <button class="pbtn" id="fs">${big ? "ย่อจอ" : "เต็มจอ"}</button>
@@ -1584,7 +1585,7 @@ function deskAction(id){
   render();
 }
 function renderMini(b){
-  const m = S.miniModal, fn = {coffee:mCoffee, snack:mSnack, voice:mVoice, focus:mFocus, radio:mRadio, cats:mCats}[m && m.kind];
+  const m = S.miniModal, fn = {coffee:mCoffee, snack:mSnack, voice:mVoice, focus:mFocus, radio:mRadio, cats:mCats, dev:mDev}[m && m.kind];
   if (fn) fn(b); else S.miniModal = null;
 }
 function iconCanvas(drawFn){ const c = document.createElement("canvas"); c.width = 12; c.height = 12; const g = c.getContext("2d"); g.imageSmoothingEnabled = false; drawFn(g); c.style.cssText = "width:36px;height:36px;image-rendering:pixelated"; return c; }
@@ -1599,6 +1600,27 @@ function mSnack(b){
   b.innerHTML = `<div class="panel"><h2>มุมขนม</h2><p class="note">หยิบได้ไม่จำกัด แวะครบ 3 ครั้งในวันเดียวได้ฉายา “สายกิน”</p>
     <div class="shop">${list.map(d => `<button class="item" data-snack="${d.id}"><span data-sic="${d.id}"></span><b>${esc(d.name)}</b>${d.fest ? `<span class="note">ของพิเศษฮาโลวีน</span>` : ""}</button>`).join("")}</div></div>`;
   b.querySelectorAll("[data-sic]").forEach(s => s.replaceWith(iconCanvas(g => drawSnack(g, s.dataset.sic, 2, 3, 1))));
+}
+/* dev cheats (staging): flat XP bonus on rooms/<me>.xpBonus, plus quick toggles */
+function setLevel(lv){
+  lv = Math.max(1, Math.min(999, Math.floor(Number(lv) || 1)));
+  const base = progOf(S.myId).xp - (Number((S.rawRooms.find(r => r.id === S.myId) || {}).xpBonus) || 0);
+  const bonus = Math.max(0, xpForLevel(lv) - base);
+  saveMine(r => { if (bonus) r.xpBonus = bonus; else delete r.xpBonus; });
+  toast(`dev: Lv${progOf(S.myId).level}`); if (MAP.me) confetti(MAP.me.x, MAP.me.y);
+}
+function mDev(b){
+  const p = progOf(S.myId), bonus = Number((S.rawRooms.find(r => r.id === S.myId) || {}).xpBonus) || 0;
+  b.innerHTML = `<div class="panel"><h2>🛠 เครื่องมือโกง</h2>
+    <p class="note">ตอนนี้ Lv.${p.level} · ${p.xp} XP${bonus ? ` (โบนัสโกง ${bonus})` : ""} · เพื่อนในออฟฟิศเห็นเลเวลนี้ด้วย</p>
+    <div class="field"><span class="lab">ตั้งเลเวล</span><div class="btnrow">${[5,10,50,100,200,999].map(n => `<button class="btn ${n === 200 ? "primary" : ""}" data-devlv="${n}">Lv${n}</button>`).join("")}</div></div>
+    <form class="addform" id="devLvForm"><input type="text" name="lv" inputmode="numeric" maxlength="3" placeholder="พิมพ์เลเวลเอง 1–999" aria-label="เลเวล"><button class="btn primary" type="submit">ตั้ง</button></form>
+    <div class="field"><span class="lab">อื่นๆ</span><div class="btnrow">
+      <button class="btn" data-dev="clear" ${bonus ? "" : "disabled"}>ล้างโบนัส กลับ XP จริง</button>
+      <button class="btn" data-dev="focus" ${S.focus ? "" : "disabled"}>จบโฟกัสทันที</button>
+      <button class="btn" data-dev="cats">เรียกแมวตัวที่ว่าง</button>
+    </div></div>
+    <p class="note">คีย์ลัด: Alt+Shift+L = Lv200 · Alt+Shift+K = ล้างโบนัส</p></div>`;
 }
 function mVoice(b){
   const has = "speechSynthesis" in window;
@@ -2069,6 +2091,11 @@ document.addEventListener("click", e => {
   if (t.id === "btnCats") return openModal({kind:"cats"});
   if (t.id === "btnRadio") return openModal({kind:"radio"});
   if (t.id === "btnVoice") return openModal({kind:"voice"});
+  if (t.id === "btnDev") return openModal({kind:"dev"});
+  if (t.dataset.devlv) { setLevel(+t.dataset.devlv); return render(); }
+  if (t.dataset.dev === "clear") { saveMine(r => { delete r.xpBonus; }); toast("dev: ล้างโบนัสแล้ว"); return render(); }
+  if (t.dataset.dev === "focus") { if (S.focus) S.focus.until = Date.now(); closeModal(); return; }
+  if (t.dataset.dev === "cats") { const fol = catFollowers(); const c = CATS.find(c => !fol[c.id] && !c.grumpy); if (c) { S.myCat = c.id; sendPresence(true); toast(`${c.name}เดินตามมาแล้ว`); } else toast("แมวไม่ว่างสักตัว"); closeModal(); renderToolbar(); return; }
   if (t.id === "ttsToggle") { S.tts = !S.tts; if (S.tts) speak("เปิดเสียงอ่านแชทแล้ว"); else try { speechSynthesis.cancel(); } catch {} render(); renderToolbar(); return; }
   if (t.dataset.drink) { const d = t.dataset.drink; closeModal(); brewCoffee(d); return; }
   if (t.dataset.snack) { const d = t.dataset.snack; closeModal(); eatSnack(d); return; }
@@ -2147,6 +2174,7 @@ document.addEventListener("pointerdown", e => { const b = e.target.closest(".dpa
 document.addEventListener("submit", e => {
   e.preventDefault();
   const f = e.target;
+  if (f.id === "devLvForm") { setLevel(f.elements.lv.value); f.reset(); return render(); }
   if (f.id === "chatbar") { const i = $("#say"); say(i.value); i.value = ""; return; }
   if (f.id === "setup") {
     const name = $("#f-name").value.trim();
